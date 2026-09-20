@@ -1,0 +1,116 @@
+{
+  "id": "OBLITERATUS__Qwen3.8-27B-OBLITERATED",
+  "repo": "OBLITERATUS/Qwen3.8-27B-OBLITERATED",
+  "quant": "Q4_K_M",
+  "files": [
+    "Qwen3.8-27B-OBLITERATED-Q4_K_M.gguf"
+  ],
+  "sizeGB": 15.66,
+  "trendingScore": 73,
+  "downloads": 1235942,
+  "likes": 1285,
+  "createdAt": "2026-08-19T14:53:08.000Z",
+  "testedAt": "2026-09-20T22:56:57.206Z",
+  "status": "ok",
+  "hardware": {
+    "vramGB": 96,
+    "contextSize": 40960,
+    "extraArgs": [
+      "--no-mmap",
+      "--jinja",
+      "-fa",
+      "on"
+    ],
+    "llamaCpp": "version: 0.4.0-dev (build 10809, commit 5266f24da)"
+  },
+  "settings": {
+    "temperature": 0.3,
+    "topP": 0.95,
+    "maxTokens": 32768,
+    "prefetchActive": false
+  },
+  "download": {
+    "seconds": 202.3,
+    "mbps": 83.1,
+    "prefetched": false
+  },
+  "load": {
+    "seconds": 6
+  },
+  "generation": {
+    "ttftMs": 4909,
+    "totalMs": 330728,
+    "finishReason": "stop",
+    "error": null,
+    "promptTokens": 1188,
+    "completionTokens": 4120,
+    "promptTps": 246.61670118193337,
+    "genTps": 12.638786703969384,
+    "reasoningChars": 587,
+    "contentChars": 12604
+  },
+  "memory": {
+    "peakVramGB": 19.54,
+    "peakGttGB": 0.91,
+    "peakRssGB": 0.5
+  },
+  "power": {
+    "source": "amdgpu power1_input",
+    "avgW": 89.4,
+    "peakW": 111,
+    "energyWh": 8.229,
+    "tokensPerWh": 501,
+    "whPer1kTokens": 1.997,
+    "rateUSDPerKWh": 0.20716,
+    "costUSD": 0.001705,
+    "costPer1MTokens": 0.4138
+  },
+  "evaluation": {
+    "hasFunction": true,
+    "fenced": false,
+    "extraneous": false,
+    "static": {
+      "totalLines": 186,
+      "codeLines": 168,
+      "nestedFns": 6,
+      "assertions": 27,
+      "topLevelExtras": 0,
+      "externalDeps": false,
+      "features": {
+        "generators": false,
+        "asyncAwait": false,
+        "customErrors": false,
+        "mapSet": false,
+        "promises": false
+      }
+    },
+    "syntaxOk": true,
+    "syntaxError": null,
+    "execution": {
+      "ok": false,
+      "exitCode": 2,
+      "timedOut": false,
+      "ms": 26,
+      "printedSummary": false,
+      "summaryPreview": "",
+      "error": "SIMULATION_ERROR: Error: Assertion failed: Project count must be 30\n    at assert (file:///var/home/CypherAZ/strix/models/_eval/OBLITERATUS__Qwen3.8-27B-OBLITERATED/harness.mjs:129:13)\n    at runEnterpriseSimulation (file:///var/home/CypherAZ/strix/models/_eval/OBLITERATUS__Qwen3.8-27B-OBLITERATED/harness.mjs:152:3)\n    at file:///var/home/CypherAZ/strix/models/_eval/OBLITERATUS__Qwen3.8-27B-OBLITERATED/harness.mjs:201:24\n    at file:///var/home/CypherAZ/strix/models/_eval/OBLITERATUS__Qwen3.8-27B-OBLITERATED/harness.mjs:226:3\n    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:681:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)",
+      "result": null
+    },
+    "score": {
+      "total": 26,
+      "breakdown": {
+        "syntax": 15,
+        "execution": 0,
+        "lineCount": 0,
+        "nestedFns": 1,
+        "assertions": 0,
+        "outputRules": 5,
+        "noExternalDeps": 5,
+        "returnShape": 0,
+        "customers": 0,
+        "invariants": 0,
+        "deterministic": 0
+      }
+    }
+  }
+}
