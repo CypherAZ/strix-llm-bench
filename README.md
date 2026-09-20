@@ -3,7 +3,7 @@
 Automated llama.cpp benchmark on AMD Strix Halo (MS-S1 Max, 128 GB unified memory, 96 GB GPU). 
 Each model is asked to write a ~1,000 line `runEnterpriseSimulation()` function; the output is syntax-checked, executed and scored out of 100.
 
-Last updated: 2026-09-20T22:21:08.268Z · Models tested: 1
+Last updated: 2026-09-20T22:26:31.996Z · Models tested: 1
 
 | # | Model | Quant | Size GB | Score | Gen tok/s | Prompt tok/s | Avg W | Wh/1k tok | TTFT s | Tokens | Lines | Asserts | Syntax | Runs | Status |
 |--:|-------|-------|--------:|------:|----------:|-------------:|------:|----------:|-------:|-------:|------:|--------:|:------:|:----:|--------|
