@@ -1,0 +1,61 @@
+{
+  "id": "ProCreations__Ternary-Bonsai-2-27B-MTP",
+  "repo": "ProCreations/Ternary-Bonsai-2-27B-MTP",
+  "quant": "Q8_0",
+  "files": [
+    "Ternary-Bonsai-2-27B-PQ2_0-MTP-Q8_0.gguf"
+  ],
+  "sizeGB": 7.13,
+  "trendingScore": 31,
+  "downloads": 10521,
+  "likes": 31,
+  "createdAt": "2026-09-17T22:47:24.000Z",
+  "testedAt": "2026-09-21T19:06:50.996Z",
+  "status": "error",
+  "hardware": {
+    "vramGB": 96,
+    "contextSize": 40960,
+    "extraArgs": [
+      "--no-mmap",
+      "--jinja",
+      "-fa",
+      "on"
+    ],
+    "llamaCpp": "version: 0.4.0-dev (build 10809, commit 5266f24da)"
+  },
+  "settings": {
+    "temperature": 0.3,
+    "topP": 0.95,
+    "maxTokens": 32768
+  },
+  "download": {
+    "seconds": 103.6,
+    "mbps": 73.9,
+    "prefetched": true
+  },
+  "stage": "load",
+  "error": "llama-server exited ({\"code\":1,\"sig\":null}):\n0.00.045.229 W srv  llama_server: -----------------\n0.00.046.469 I srv    load_model: loading model '/var/home/CypherAZ/strix/models/ProCreations__Ternary-Bonsai-2-27B-MTP/Ternary-Bonsai-2-27B-PQ2_0-MTP-Q8_0.gguf'\n0.00.092.828 E gguf_init_from_reader: tensor 'output.weight' has invalid ggml type 142. should be in [0, 43)\n0.00.092.837 E gguf_init_from_reader: failed to read tensor info\n0.00.096.540 E llama_model_load: error loading model: llama_model_loader: failed to load model from /var/home/CypherAZ/strix/models/ProCreations__Ternary-Bonsai-2-27B-MTP/Ternary-Bonsai-2-27B-PQ2_0-MTP-Q8_0.gguf\n0.00.096.546 E llama_model_load_from_file_impl: failed to load model\n0.00.096.575 E common_fit_params: encountered an error while trying to fit params to free device memory: failed to load model\n0.00.140.115 E gguf_init_from_reader: tensor 'output.weight' has invalid ggml type 142. should be in [0, 43)\n0.00.140.118 E gguf_init_from_reader: failed to read tensor info\n0.00.143.871 E llama_model_load: error loading model: llama_model_loader: failed to load model from /var/home/CypherAZ/strix/models/ProCreations__Ternary-Bonsai-2-27B-MTP/Ternary-Bonsai-2-27B-PQ2_0-MTP-Q8_0.gguf\n0.00.143.875 E llama_model_load_from_file_impl: failed to load model\n0.00.143.885 E cmn  common_init_: failed to load model '/var/home/CypherAZ/strix/models/ProCreations__Ternary-Bonsai-2-27B-MTP/Ternary-Bonsai-2-27B-PQ2_0-MTP-Q8_0.gguf'\n0.00.143.892 E srv    load_model: failed to load model, '/var/home/CypherAZ/strix/models/ProCreations__Ternary-Bonsai-2-27B-MTP/Ternary-Bonsai-2-27B-PQ2_0-MTP-Q8_0.gguf'\n0.00.143.894 I srv    operator(): operator(): cleaning up before exit...\n0.00.145.160 E srv  llama_server: exiting due to model loading error",
+  "llamaLogTail": [
+    "0.00.044.542 W DEPRECATED: --mmap and --no-mmap are deprecated. use --load-mode mmap instead",
+    "0.00.044.910 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)",
+    "0.00.045.227 W srv  llama_server: -----------------",
+    "0.00.045.229 W srv  llama_server: CORS is set to allow all origins ('*') and no API key is set",
+    "0.00.045.229 W srv  llama_server: this can be a security risk (cross-origin attacks)",
+    "0.00.045.229 W srv  llama_server: more info: https://github.com/ggml-org/llama.cpp/pull/25655",
+    "0.00.045.229 W srv  llama_server: -----------------",
+    "0.00.046.469 I srv    load_model: loading model '/var/home/CypherAZ/strix/models/ProCreations__Ternary-Bonsai-2-27B-MTP/Ternary-Bonsai-2-27B-PQ2_0-MTP-Q8_0.gguf'",
+    "0.00.092.828 E gguf_init_from_reader: tensor 'output.weight' has invalid ggml type 142. should be in [0, 43)",
+    "0.00.092.837 E gguf_init_from_reader: failed to read tensor info",
+    "0.00.096.540 E llama_model_load: error loading model: llama_model_loader: failed to load model from /var/home/CypherAZ/strix/models/ProCreations__Ternary-Bonsai-2-27B-MTP/Ternary-Bonsai-2-27B-PQ2_0-MTP-Q8_0.gguf",
+    "0.00.096.546 E llama_model_load_from_file_impl: failed to load model",
+    "0.00.096.575 E common_fit_params: encountered an error while trying to fit params to free device memory: failed to load model",
+    "0.00.140.115 E gguf_init_from_reader: tensor 'output.weight' has invalid ggml type 142. should be in [0, 43)",
+    "0.00.140.118 E gguf_init_from_reader: failed to read tensor info",
+    "0.00.143.871 E llama_model_load: error loading model: llama_model_loader: failed to load model from /var/home/CypherAZ/strix/models/ProCreations__Ternary-Bonsai-2-27B-MTP/Ternary-Bonsai-2-27B-PQ2_0-MTP-Q8_0.gguf",
+    "0.00.143.875 E llama_model_load_from_file_impl: failed to load model",
+    "0.00.143.885 E cmn  common_init_: failed to load model '/var/home/CypherAZ/strix/models/ProCreations__Ternary-Bonsai-2-27B-MTP/Ternary-Bonsai-2-27B-PQ2_0-MTP-Q8_0.gguf'",
+    "0.00.143.892 E srv    load_model: failed to load model, '/var/home/CypherAZ/strix/models/ProCreations__Ternary-Bonsai-2-27B-MTP/Ternary-Bonsai-2-27B-PQ2_0-MTP-Q8_0.gguf'",
+    "0.00.143.894 I srv    operator(): operator(): cleaning up before exit...",
+    "0.00.145.160 E srv  llama_server: exiting due to model loading error"
+  ]
+}

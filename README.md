@@ -3,7 +3,7 @@
 Automated llama.cpp benchmark on AMD Strix Halo (MS-S1 Max, 128 GB unified memory, 96 GB GPU). 
 Each model is asked to write a ~1,000 line `runEnterpriseSimulation()` function; the output is syntax-checked, executed and scored out of 100.
 
-Last updated: 2026-09-21T19:06:47.647Z · Models tested: 7
+Last updated: 2026-09-21T19:06:52.810Z · Models tested: 8
 
 | # | Model | Quant | Size GB | Score | Thinking | Gen tok/s | Prompt tok/s | Avg W | Wh/1k tok | $/1M tok | TTFT s | Tokens | Lines | Asserts | Syntax | Runs | Status | Outcome |
 |--:|-------|-------|--------:|------:|:-------:|----------:|-------------:|------:|----------:|---------:|-------:|-------:|------:|--------:|:------:|:----:|--------|---------|
@@ -13,7 +13,8 @@ Last updated: 2026-09-21T19:06:47.647Z · Models tested: 7
 | 4 | [empero-ai/Qwen3.8-35B-A3B-Distill-GGUF](https://huggingface.co/empero-ai/Qwen3.8-35B-A3B-Distill-GGUF) | Q4_K_M | 20.2 | **23** | low · ≤4096 tok | 63.4 | 664.7 | 70.3 | 0.310 | $0.064 | 1.80 | 32768 | 1840 | 421 | ❌ | – | length | Hit the 32,768-token limit; syntax error: Identifier 'contractsWithTerms' has already been declared. |
 | 5 | [OBLITERATUS/Qwen3.8-27B-OBLITERATED](https://huggingface.co/OBLITERATUS/Qwen3.8-27B-OBLITERATED) | Q4_K_M | 15.7 | **15** | low · ≤4096 tok | 12.6 | – | 90.7 | 2.020 | $0.418 | 4.98 | 6400 | 359 | 0 | ❌ | – | loop | Stopped for repeating itself; the code was cut off before the end. |
 | 6 | [openbmb/MiniCPM5-2B-GGUF](https://huggingface.co/openbmb/MiniCPM5-2B-GGUF) | Q4_K_M | 1.4 | **0** | low · ≤4096 tok | 118.2 | – | 66.9 | 0.166 | $0.034 | 0.34 | 1280 | 0 | 0 | – | – | loop | Got stuck repeating itself while thinking; wrote no code. |
-| 7 | [XHToken/Spark-X2.5-4B-GGUF](https://huggingface.co/XHToken/Spark-X2.5-4B-GGUF) | Q4_K_M | 2.4 | **0** | default | – | – | – | – | – | – | – | – | – | – | – | error (load) | Failed at load: llama-server exited ({"code":1,"sig":null}): |
+| 7 | [ProCreations/Ternary-Bonsai-2-27B-MTP](https://huggingface.co/ProCreations/Ternary-Bonsai-2-27B-MTP) | Q8_0 | 7.1 | **0** | default | – | – | – | – | – | – | – | – | – | – | – | error (load) | Failed at load: llama-server exited ({"code":1,"sig":null}): |
+| 8 | [XHToken/Spark-X2.5-4B-GGUF](https://huggingface.co/XHToken/Spark-X2.5-4B-GGUF) | Q4_K_M | 2.4 | **0** | default | – | – | – | – | – | – | – | – | – | – | – | error (load) | Failed at load: llama-server exited ({"code":1,"sig":null}): |
 
 Per-model raw output, extracted code and full metrics are in [`models/`](models/).
 
