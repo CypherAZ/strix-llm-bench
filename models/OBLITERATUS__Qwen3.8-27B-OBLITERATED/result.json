@@ -1,0 +1,135 @@
+{
+  "id": "OBLITERATUS__Qwen3.8-27B-OBLITERATED",
+  "repo": "OBLITERATUS/Qwen3.8-27B-OBLITERATED",
+  "quant": "Q4_K_M",
+  "files": [
+    "Qwen3.8-27B-OBLITERATED-Q4_K_M.gguf"
+  ],
+  "sizeGB": 15.66,
+  "trendingScore": 65,
+  "downloads": 1187266,
+  "likes": 1287,
+  "createdAt": "2026-08-19T14:53:08.000Z",
+  "testedAt": "2026-09-21T18:18:28.841Z",
+  "status": "ok",
+  "hardware": {
+    "vramGB": 96,
+    "contextSize": 40960,
+    "extraArgs": [
+      "--no-mmap",
+      "--jinja",
+      "-fa",
+      "on"
+    ],
+    "llamaCpp": "version: 0.4.0-dev (build 10809, commit 5266f24da)"
+  },
+  "settings": {
+    "temperature": 0.3,
+    "topP": 0.95,
+    "maxTokens": 32768,
+    "reasoning": {
+      "effort": "low",
+      "budget": 4096
+    },
+    "prefetchActive": true
+  },
+  "download": {
+    "seconds": 240.9,
+    "mbps": 69.8,
+    "prefetched": true
+  },
+  "load": {
+    "seconds": 3
+  },
+  "generation": {
+    "ttftMs": 4977,
+    "totalMs": 512461,
+    "finishReason": "loop",
+    "error": "Aborted: model entered a repetition loop",
+    "promptTokens": null,
+    "completionTokens": 6400,
+    "promptTps": null,
+    "genTps": 12.611235034010924,
+    "reasoningChars": 489,
+    "contentChars": 13777
+  },
+  "memory": {
+    "peakVramGB": 19.69,
+    "peakGttGB": 0.94,
+    "peakRssGB": 0.5
+  },
+  "power": {
+    "source": "amdgpu power1_input",
+    "avgW": 90.7,
+    "peakW": 116.6,
+    "energyWh": 12.928,
+    "tokensPerWh": 495,
+    "whPer1kTokens": 2.02,
+    "rateUSDPerKWh": 0.20716,
+    "costUSD": 0.002678,
+    "costPer1MTokens": 0.4185
+  },
+  "evaluation": {
+    "hasFunction": true,
+    "functionForm": "declaration",
+    "fenced": false,
+    "extraneous": false,
+    "static": {
+      "totalLines": 359,
+      "codeLines": 359,
+      "nestedFns": 118,
+      "assertions": 0,
+      "assertHelpers": [],
+      "topLevelExtras": 0,
+      "systems": 0,
+      "externalDeps": false,
+      "features": {
+        "generators": false,
+        "asyncAwait": false,
+        "customErrors": false,
+        "mapSet": false,
+        "promises": false
+      }
+    },
+    "syntaxOk": false,
+    "syntaxError": "/var/home/CypherAZ/strix/models/_eval/OBLITERATUS__Qwen3.8-27B-OBLITERATED/output.mjs:360\nSyntaxError: Unexpected end of input\n    at checkSyntax (node:internal/main/check_syntax:74:5)\nNode.js v22.23.2",
+    "execution": null,
+    "errorKind": null,
+    "score": {
+      "version": 3,
+      "total": 15,
+      "max": {
+        "syntax": 10,
+        "completed": 5,
+        "lineCount": 5,
+        "nestedFns": 5,
+        "assertions": 5,
+        "techniques": 5,
+        "systems": 5,
+        "outputRules": 5,
+        "noExternalDeps": 5,
+        "execution": 25,
+        "returnShape": 10,
+        "customers": 5,
+        "invariants": 5,
+        "deterministic": 5
+      },
+      "breakdown": {
+        "syntax": 0,
+        "completed": 0,
+        "lineCount": 0,
+        "nestedFns": 5,
+        "assertions": 0,
+        "techniques": 0,
+        "systems": 0,
+        "outputRules": 5,
+        "noExternalDeps": 5,
+        "execution": 0,
+        "returnShape": 0,
+        "customers": 0,
+        "invariants": 0,
+        "deterministic": 0
+      }
+    }
+  }
+}
