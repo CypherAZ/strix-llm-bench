@@ -3,12 +3,13 @@
 Automated llama.cpp benchmark on AMD Strix Halo (MS-S1 Max, 128 GB unified memory, 96 GB GPU). 
 Each model is asked to write a ~1,000 line `runEnterpriseSimulation()` function; the output is syntax-checked, executed and scored out of 100.
 
-Last updated: 2026-09-21T00:46:41.964Z · Models tested: 2
+Last updated: 2026-09-21T00:47:01.428Z · Models tested: 3
 
 | # | Model | Quant | Size GB | Score | Thinking | Gen tok/s | Prompt tok/s | Avg W | Wh/1k tok | $/1M tok | TTFT s | Tokens | Lines | Asserts | Syntax | Runs | Status |
 |--:|-------|-------|--------:|------:|:-------:|----------:|-------------:|------:|----------:|---------:|-------:|-------:|------:|--------:|:------:|:----:|--------|
-| 1 | [OBLITERATUS/Qwen3.8-27B-OBLITERATED](https://huggingface.co/OBLITERATUS/Qwen3.8-27B-OBLITERATED) | Q4_K_M | 15.7 | **20** | low · ≤4096 tok | 12.5 | 246.2 | 90.4 | 2.019 | $0.418 | 4.92 | 12008 | 1109 | 0 | ❌ | – | stop |
-| 2 | [empero-ai/Qwen3.8-35B-A3B-Distill-GGUF](https://huggingface.co/empero-ai/Qwen3.8-35B-A3B-Distill-GGUF) | Q4_K_M | 20.2 | **12** | low · ≤4096 tok | 65.6 | 665.2 | 71.5 | 0.305 | $0.063 | 1.80 | 21874 | 1564 | 180 | ❌ | – | stop |
+| 1 | [openbmb/MiniCPM5-2B-GGUF](https://huggingface.co/openbmb/MiniCPM5-2B-GGUF) | Q4_K_M | 1.4 | **25** | low · ≤4096 tok | 118.4 | – | 69.4 | 0.172 | $0.036 | 0.33 | 1280 | 0 | 0 | ✅ | – | loop |
+| 2 | [OBLITERATUS/Qwen3.8-27B-OBLITERATED](https://huggingface.co/OBLITERATUS/Qwen3.8-27B-OBLITERATED) | Q4_K_M | 15.7 | **20** | low · ≤4096 tok | 12.5 | 246.2 | 90.4 | 2.019 | $0.418 | 4.92 | 12008 | 1109 | 0 | ❌ | – | stop |
+| 3 | [empero-ai/Qwen3.8-35B-A3B-Distill-GGUF](https://huggingface.co/empero-ai/Qwen3.8-35B-A3B-Distill-GGUF) | Q4_K_M | 20.2 | **12** | low · ≤4096 tok | 65.6 | 665.2 | 71.5 | 0.305 | $0.063 | 1.80 | 21874 | 1564 | 180 | ❌ | – | stop |
 
 Per-model raw output, extracted code and full metrics are in [`models/`](models/).
 
