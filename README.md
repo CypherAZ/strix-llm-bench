@@ -3,14 +3,10 @@
 Automated llama.cpp benchmark on AMD Strix Halo (MS-S1 Max, 128 GB unified memory, 96 GB GPU). 
 Each model is asked to write a ~1,000 line `runEnterpriseSimulation()` function; the output is syntax-checked, executed and scored out of 100.
 
-Last updated: 2026-09-21T01:24:45.220Z · Models tested: 4
+Last updated: 2026-09-21T16:43:18.431Z · Models tested: 0
 
 | # | Model | Quant | Size GB | Score | Thinking | Gen tok/s | Prompt tok/s | Avg W | Wh/1k tok | $/1M tok | TTFT s | Tokens | Lines | Asserts | Syntax | Runs | Status |
 |--:|-------|-------|--------:|------:|:-------:|----------:|-------------:|------:|----------:|---------:|-------:|-------:|------:|--------:|:------:|:----:|--------|
-| 1 | [JonathanColetti/Qwen3.8-27B-Uncensored-GGUF](https://huggingface.co/JonathanColetti/Qwen3.8-27B-Uncensored-GGUF) | Q4_K_M | 15.4 | **37** | low · ≤4096 tok | 12.2 | 215.8 | 90.3 | 2.057 | $0.426 | 5.66 | 24517 | 729 | 70 | ✅ | ❌ | stop |
-| 2 | [openbmb/MiniCPM5-2B-GGUF](https://huggingface.co/openbmb/MiniCPM5-2B-GGUF) | Q4_K_M | 1.4 | **25** | low · ≤4096 tok | 118.4 | – | 69.4 | 0.172 | $0.036 | 0.33 | 1280 | 0 | 0 | ✅ | – | loop |
-| 3 | [OBLITERATUS/Qwen3.8-27B-OBLITERATED](https://huggingface.co/OBLITERATUS/Qwen3.8-27B-OBLITERATED) | Q4_K_M | 15.7 | **20** | low · ≤4096 tok | 12.5 | 246.2 | 90.4 | 2.019 | $0.418 | 4.92 | 12008 | 1109 | 0 | ❌ | – | stop |
-| 4 | [empero-ai/Qwen3.8-35B-A3B-Distill-GGUF](https://huggingface.co/empero-ai/Qwen3.8-35B-A3B-Distill-GGUF) | Q4_K_M | 20.2 | **12** | low · ≤4096 tok | 65.6 | 665.2 | 71.5 | 0.305 | $0.063 | 1.80 | 21874 | 1564 | 180 | ❌ | – | stop |
 
 Per-model raw output, extracted code and full metrics are in [`models/`](models/).
 
@@ -18,18 +14,21 @@ Per-model raw output, extracted code and full metrics are in [`models/`](models/
 
 ### Score (0–100)
 
-- **Score** — Total of the eleven checks below. It measures how well the model followed the benchmark prompt and whether its code actually works — not general intelligence. Failed runs show ERR.
-- **Syntax (15)** — The extracted code parses without errors (`node --check`). ✔ = valid.
-- **Executes / Runs (25)** — The code runs to completion in Node within the time limit. Because the prompt requires a built-in test suite, any failed assertion or thrown error counts as a failure. ✔ = ran cleanly.
-- **Line count (10)** — Non-blank, non-comment lines within the requested 900–1,100 range. Partial credit the further outside the range it is.
-- **Nested functions (5)** — At least 25 helper functions defined inside `runEnterpriseSimulation()` (regex-based count).
-- **Assertions (10)** — At least 40 `assert…(` calls in the code (regex-based count). Only scored if the code runs.
-- **Output rules (5)** — The reply was only code: no Markdown fences and no explanation before or after it.
-- **No external deps (5)** — No `require`/`import`, and nothing declared at the top level besides the one function.
-- **Return shape (10)** — The returned object has all 11 required keys and the `metrics` object has all 18 required metrics.
-- **Customers (5)** — The simulation created at least 100 customers.
-- **Invariants (5)** — ARR equals MRR × 12 and the key metrics (revenue, counts, API totals) are non-negative.
-- **Determinism / Determ. (5)** — Running the function twice gives identical metrics, as the seeded random generator requirement demands.
+- **Score** — Total of the checks below, out of 100. Half can be earned from the code as written (even if it does not run); the other half requires it to actually work. 100 needs a flawless, working answer. If the model produced no `runEnterpriseSimulation()` function at all (for example it ran out of tokens while thinking), the score is 0. Both `function runEnterpriseSimulation()` and `const runEnterpriseSimulation = () => …` count.
+- **Syntax (10)** — The extracted code parses without errors (`node --check`). ✔ = valid.
+- **Finished (5)** — The model ended on its own (finish reason `stop`) rather than being cut off by the token limit or aborted for looping.
+- **Line count (5)** — Non-blank, non-comment lines within the requested 900–1,100 range. Partial credit the closer it is.
+- **Nested functions (5)** — At least 25 helper functions defined inside `runEnterpriseSimulation()`. Pattern-based count that ignores comments and strings; object/class methods are not counted.
+- **Assertions (5)** — At least 40 assertions written into the code: calls to an `assert…`/`expect…`/`invariant…` helper, or to a check-style helper such as `check(cond, msg)` that is used 5+ times with a condition. Comments, strings and the helper definition itself are not counted. An assertion inside a loop over a literal table of checks counts once per entry; one inside a loop over generated data (e.g. every customer) counts once.
+- **Techniques (5)** — One point each for using generators, async/await, custom Error classes, Map and Set together, and Promises, as the prompt asked.
+- **Systems covered (5)** — How many of the 20 requested systems (customers, invoices, tickets, tasks, …) appear at least 3 times in the code itself (comments and strings are ignored). A rough on-topic check: a model that drifts off-topic scores low here.
+- **Output rules (5)** — The reply was only code: no Markdown fences and no prose before or after it. Code comments, `'use strict'` and a call to the function after it are fine.
+- **No external deps (5)** — No `require`/`import` (even of Node built-ins), and no functions, classes or variables declared at the top level besides the one function. Calling or exporting the function is allowed. Code that loads a built-in with `require` still runs, so it loses only these 5 points.
+- **Executes / Runs (25)** — The code runs in Node within the time limit. A clean run earns 25. If it ran but its own test suite failed (the error came from one of its assertion helpers as defined under Assertions, a test-suite function such as `runTests`, an assertion-type error class, or its message reports failed assertions/invariants) it earns 10. Any other error (ReferenceError, TypeError, an uncaught business error, …) or a timeout earns 0. ✔ = clean run.
+- **Return shape (10)** — The returned object has all 11 required keys and the `metrics` object has all 18 required metrics. Needs a clean run.
+- **Customers (5)** — The simulation created at least 100 customers. Needs a clean run.
+- **Invariants (5)** — ARR equals MRR × 12 and the key metrics (revenue, counts, API totals) are non-negative. Needs a clean run.
+- **Determinism / Determ. (5)** — Running the function twice gives identical values for the 18 required metrics, as the seeded random generator requirement demands. Extra metrics such as a timestamp are ignored. Needs a clean run.
 - **Lines / Asserts** — The raw counts behind the line-count and assertions checks.
 
 ### Speed
