@@ -1,0 +1,2316 @@
+function runEnterpriseSimulation() {
+  const SEED = 42;
+  let seedState = SEED;
+
+  const customErrors = {
+    ValidationError: class ValidationError extends Error {
+      constructor(message) { super(message); this.name = "ValidationError"; }
+    },
+    BusinessRuleError: class BusinessRuleError extends Error {
+      constructor(message) { super(message); this.name = "BusinessRuleError"; }
+    },
+    PaymentError: class PaymentError extends Error {
+      constructor(message) { super(message); this.name = "PaymentError"; }
+    }
+  };
+
+  const { ValidationError, BusinessRuleError, PaymentError } = customErrors;
+
+  const state = {
+    customers: [],
+    users: [],
+    accounts: [],
+    products: [],
+    subscriptions: [],
+    pricingPlans: [],
+    invoices: [],
+    payments: [],
+    supportTickets: [],
+    opportunities: [],
+    contracts: [],
+    usageRecords: [],
+    apiRequests: [],
+    auditLogs: [],
+    notifications: [],
+    featureFlags: new Map(),
+    permissions: new Map(),
+    teams: [],
+    projects: [],
+    tasks: [],
+    metrics: {}
+  };
+
+  const idCounter = { value: 1000 };
+  function generateId(prefix) {
+    idCounter.value += 1;
+    return `${prefix}-${idCounter.value}`;
+  }
+
+  function seededRandom() {
+    seedState = (seedState * 1664525 + 1013904223) & 0xFFFFFFFF;
+    return (seedState >>> 0) / 0xFFFFFFFF;
+  }
+
+  function seededRandomInt(min, max) {
+    return Math.floor(seededRandom() * (max - min + 1)) + min;
+  }
+
+  function seededRandomChoice(arr) {
+    return arr[seededRandomInt(0, arr.length - 1)];
+  }
+
+  function seededRandomFloat(min, max) {
+    return seededRandom() * (max - min) + min;
+  }
+
+  function seededRandomDate(start, end) {
+    const diff = end.getTime() - start.getTime();
+    return new Date(start.getTime() + seededRandom() * diff);
+  }
+
+  function seededRandomString(length) {
+    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    let result = "";
+    for (let i = 0; i < length; i++) {
+      result += chars[seededRandomInt(0, chars.length - 1)];
+    }
+    return result;
+  }
+
+  function seededRandomEmail() {
+    const names = ["john", "jane", "mike", "sarah", "alex", "emma", "david", "lisa", "chris", "anna"];
+    const domains = ["gmail.com", "yahoo.com", "outlook.com", "company.io", "enterprise.com"];
+    return `${seededRandomChoice(names)}${seededRandomInt(1, 999)}@${seededRandomChoice(domains)}`;
+  }
+
+  function seededRandomName() {
+    const firstNames = ["James", "Mary", "Robert", "Patricia", "John", "Jennifer", "Michael", "Linda", "David", "Elizabeth", "William", "Barbara", "Richard", "Susan", "Joseph", "Jessica", "Thomas", "Sarah", "Charles", "Karen"];
+    const lastNames = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin"];
+    return `${seededRandomChoice(firstNames)} ${seededRandomChoice(lastNames)}`;
+  }
+
+  function seededRandomCompany() {
+    const prefixes = ["Tech", "Global", "Digital", "Cloud", "Data", "Smart", "Next", "Prime", "Alpha", "Vertex"];
+    const suffixes = ["Solutions", "Systems", "Labs", "Corp", "Inc", "Group", "Ventures", "Dynamics", "Nexus", "Forge"];
+    return `${seededRandomChoice(prefixes)} ${seededRandomChoice(suffixes)}`;
+  }
+
+  function seededRandomAddress() {
+    const streets = ["Main St", "Oak Ave", "Pine Rd", "Elm Blvd", "Cedar Ln", "Maple Dr", "Birch Way", "Walnut Ct", "Spruce Pl", "Ash St"];
+    const cities = ["New York", "San Francisco", "Chicago", "Austin", "Seattle", "Boston", "Denver", "Portland", "Atlanta", "Miami"];
+    return `${seededRandomInt(100, 9999)} ${seededRandomChoice(streets)}, ${seededRandomChoice(cities)}, ${seededRandomInt(10000, 99999)}`;
+  }
+
+  function formatDate(date) {
+    return date.toISOString().split("T")[0];
+  }
+
+  function addDays(date, days) {
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
+  }
+
+  function addMonths(date, months) {
+    const result = new Date(date);
+    result.setMonth(result.getMonth() + months);
+    return result;
+  }
+
+  function daysBetween(d1, d2) {
+    return Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  function monthsBetween(d1, d2) {
+    return (d2.getFullYear() - d1.getFullYear()) * 12 + d2.getMonth() - d1.getMonth();
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function deepClone(obj) {
+    return JSON.parse(JSON.stringify(obj));
+  }
+
+  function groupBy(arr, keyFn) {
+    return arr.reduce((acc, item) => {
+      const key = keyFn(item);
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(item);
+      return acc;
+    }, {});
+  }
+
+  function sumBy(arr, keyFn) {
+    return arr.reduce((sum, item) => sum + (keyFn(item) || 0), 0);
+  }
+
+  function avgBy(arr, keyFn) {
+    if (arr.length === 0) return 0;
+    return sumBy(arr, keyFn) / arr.length;
+  }
+
+  function uniqueBy(arr, keyFn) {
+    const seen = new Set();
+    return arr.filter(item => {
+      const key = keyFn(item);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function flatten(arr) {
+    return arr.reduce((acc, val) => acc.concat(Array.isArray(val) ? flatten(val) : val), []);
+  }
+
+  function retry(fn, maxAttempts, delay) {
+    return new Promise((resolve, reject) => {
+      function attempt(attempt) {
+        try {
+          const result = fn();
+          resolve(result);
+        } catch (e) {
+          if (attempt < maxAttempts) {
+            setTimeout(() => attempt(attempt + 1), delay);
+          } else {
+            reject(e);
+          }
+        }
+      }
+      attempt(1);
+    });
+  }
+
+  function throttle(fn, interval) {
+    let lastCall = 0;
+    return function (...args) {
+      const now = Date.now();
+      if (now - lastCall >= interval) {
+        lastCall = now;
+        return fn.apply(this, args);
+      }
+    };
+  }
+
+  function memoize(fn) {
+    const cache = new Map();
+    return function (...args) {
+      const key = JSON.stringify(args);
+      if (cache.has(key)) return cache.get(key);
+      const result = fn.apply(this, args);
+      cache.set(key, result);
+      return result;
+    };
+  }
+
+  function pipe(...fns) {
+    return (value) => fns.reduce((acc, fn) => fn(acc), value);
+  }
+
+  function compose(...fns) {
+    return (value) => fns.reduceRight((acc, fn) => fn(acc), value);
+  }
+
+  function range(start, end, step = 1) {
+    const result = [];
+    for (let i = start; i <= end; i += step) result.push(i);
+    return result;
+  }
+
+  function chunk(arr, size) {
+    const result = [];
+    for (let i = 0; i < arr.length; i += size) result.push(arr.slice(i, i + size));
+    return result;
+  }
+
+  function zip(...arrays) {
+    const length = Math.min(...arrays.map(a => a.length));
+    return range(0, length - 1).map(i => arrays.map(a => a[i]));
+  }
+
+  function cartesianProduct(...arrays) {
+    return arrays.reduce((acc, arr) => acc.flatMap(x => arr.map(y => [...x, y])), [[]]);
+  }
+
+  function permutation(arr) {
+    const result = [...arr];
+    for (let i = result.length - 1; i > 0; i--) {
+      const j = seededRandomInt(0, i);
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+  }
+
+  function weightedRandom(items, weights) {
+    const total = weights.reduce((s, w) => s + w, 0);
+    let r = seededRandom() * total;
+    for (let i = 0; i < items.length; i++) {
+      r -= weights[i];
+      if (r <= 0) return items[i];
+    }
+    return items[items.length - 1];
+  }
+
+  function exponentialDecay(value, rate, time) {
+    return value * Math.exp(-rate * time);
+  }
+
+  function sigmoid(x) {
+    return 1 / (1 + Math.exp(-x));
+  }
+
+  function gaussianRandom(mean, std) {
+    const u1 = seededRandom();
+    const u2 = seededRandom();
+    const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+    return mean + z * std;
+  }
+
+  function linearInterpolation(x, x0, x1, y0, y1) {
+    if (x1 === x0) return y0;
+    return y0 + (y1 - y0) * ((x - x0) / (x1 - x0));
+  }
+
+  function generatePricingPlans() {
+    const plans = [
+      { id: generateId("plan"), name: "Free", tier: "free", monthlyPrice: 0, annualPrice: 0, apiLimit: 1000, maxUsers: 1, maxProjects: 1, features: ["basic_analytics", "email_support"], volumeDiscount: 0 },
+      { id: generateId("plan"), name: "Starter", tier: "starter", monthlyPrice: 29, annualPrice: 290, apiLimit: 10000, maxUsers: 5, maxProjects: 5, features: ["basic_analytics", "email_support", "api_access"], volumeDiscount: 0 },
+      { id: generateId("plan"), name: "Professional", tier: "professional", monthlyPrice: 99, annualPrice: 990, apiLimit: 50000, maxUsers: 25, maxProjects: 25, features: ["advanced_analytics", "email_support", "api_access", "custom_reports", "priority_support"], volumeDiscount: 0.05 },
+      { id: generateId("plan"), name: "Business", tier: "business", monthlyPrice: 299, annualPrice: 2990, apiLimit: 200000, maxUsers: 100, maxProjects: 100, features: ["advanced_analytics", "email_support", "api_access", "custom_reports", "priority_support", "dedicated_account_manager", "sla_99_9"], volumeDiscount: 0.1 },
+      { id: generateId("plan"), name: "Enterprise", tier: "enterprise", monthlyPrice: 999, annualPrice: 9990, apiLimit: 1000000, maxUsers: -1, maxProjects: -1, features: ["advanced_analytics", "email_support", "api_access", "custom_reports", "priority_support", "dedicated_account_manager", "sla_99_99", "white_label", "custom_integrations", "on_premise_option"], volumeDiscount: 0.15 }
+    ];
+    state.pricingPlans = plans;
+    return plans;
+  }
+
+  function generateProducts() {
+    const products = [
+      { id: generateId("prod"), name: "Analytics Platform", description: "Real-time analytics dashboard", basePrice: 0, category: "analytics" },
+      { id: generateId("prod"), name: "API Gateway", description: "Enterprise API management", basePrice: 0, category: "infrastructure" },
+      { id: generateId("prod"), name: "Data Warehouse", description: "Scalable data storage", basePrice: 0, category: "data" },
+      { id: generateId("prod"), name: "Workflow Engine", description: "Automated business workflows", basePrice: 0, category: "automation" },
+      { id: generateId("prod"), name: "Security Suite", description: "Advanced security monitoring", basePrice: 0, category: "security" }
+    ];
+    state.products = products;
+    return products;
+  }
+
+  function generateCustomers(count) {
+    const customers = [];
+    const tiers = ["free", "starter", "professional", "business", "enterprise"];
+    const tierWeights = [0.15, 0.25, 0.30, 0.20, 0.10];
+    for (let i = 0; i < count; i++) {
+      const tier = weightedRandom(tiers, tierWeights);
+      const plan = state.pricingPlans.find(p => p.tier === tier);
+      const createdAt = seededRandomDate(new Date(2022, 0, 1), new Date(2024, 5, 1));
+      const isEnterprise = tier === "enterprise";
+      const annualDiscount = isEnterprise ? 0.15 : tier === "business" ? 0.1 : tier === "professional" ? 0.05 : 0;
+      const monthlyPrice = plan.monthlyPrice * (1 - annualDiscount);
+      const annualPrice = plan.annualPrice * (1 - annualDiscount);
+      const customer = {
+        id: generateId("cust"),
+        name: seededRandomCompany(),
+        email: seededRandomEmail(),
+        address: seededRandomAddress(),
+        tier,
+        planId: plan.id,
+        createdAt,
+        updatedAt: new Date(createdAt.getTime() + seededRandomInt(1, 365) * 86400000),
+        isEnterprise,
+        annualDiscount,
+        monthlyPrice,
+        annualPrice,
+        status: seededRandom() > 0.15 ? "active" : "churned",
+        industry: seededRandomChoice(["technology", "finance", "healthcare", "retail", "manufacturing", "education", "government", "media"]),
+        employeeCount: seededRandomInt(isEnterprise ? 500 : tier === "business" ? 100 : tier === "professional" ? 25 : tier === "starter" ? 5 : 1, isEnterprise ? 50000 : 500),
+        revenue: 0,
+        mrr: monthlyPrice,
+        arr: annualPrice,
+        lifetimeValue: 0,
+        lastActivity: new Date(createdAt.getTime() + seededRandomInt(1, 730) * 86400000),
+        churnReason: null,
+        notes: seededRandom() > 0.7 ? `Customer from ${seededRandomChoice(["referral", "inbound", "outbound", "partner"])} channel` : null
+      };
+      customers.push(customer);
+    }
+    state.customers = customers;
+    return customers;
+  }
+
+  function generateAccounts(customers) {
+    const accounts = [];
+    customers.forEach(customer => {
+      const account = {
+        id: generateId("acct"),
+        customerId: customer.id,
+        name: `${customer.name} - Main Account`,
+        status: customer.status,
+        createdAt: customer.createdAt,
+        updatedAt: customer.updatedAt,
+        billingEmail: customer.email,
+        billingAddress: customer.address,
+        paymentMethod: seededRandomChoice(["credit_card", "bank_transfer", "paypal"]),
+        taxExempt: seededRandom() > 0.85,
+        taxRate: seededRandomFloat(0.05, 0.12),
+        currency: seededRandomChoice(["USD", "EUR", "GBP"]),
+        creditBalance: seededRandomFloat(0, 500),
+        notes: null
+      };
+      accounts.push(account);
+      state.accounts.push(account);
+    });
+    return accounts;
+  }
+
+  function generateUsers(customers, accounts) {
+    const users = [];
+    const roles = ["admin", "manager", "analyst", "viewer", "developer"];
+    const roleWeights = [0.1, 0.15, 0.25, 0.3, 0.2];
+    customers.forEach((customer, idx) => {
+      const maxUsers = state.pricingPlans.find(p => p.id === customer.planId)?.maxUsers || 1;
+      const userCount = maxUsers === -1 ? seededRandomInt(5, 50) : Math.min(maxUsers, seededRandomInt(1, maxUsers + 2));
+      for (let i = 0; i < userCount; i++) {
+        const role = weightedRandom(roles, roleWeights);
+        const user = {
+          id: generateId("user"),
+          accountId: accounts[idx].id,
+          customerId: customer.id,
+          name: seededRandomName(),
+          email: seededRandomEmail(),
+          role,
+          status: seededRandom() > 0.1 ? "active" : "inactive",
+          createdAt: seededRandomDate(customer.createdAt, addMonths(customer.createdAt, 6)),
+          lastLogin: addDays(new Date(), -seededRandomInt(0, 30)),
+          permissions: role === "admin" ? ["all"] : role === "manager" ? ["read", "write", "manage_team"] : role === "analyst" ? ["read", "write", "reports"] : role === "developer" ? ["read", "write", "api"] : ["read"],
+          mfaEnabled: seededRandom() > 0.4,
+          twoFactorSecret: seededRandomString(32),
+          timezone: seededRandomChoice(["UTC", "America/New_York", "America/Los_Angeles", "Europe/London", "Asia/Tokyo"]),
+          language: seededRandomChoice(["en", "es", "fr", "de", "ja"]),
+          avatarUrl: null,
+          notes: null
+        };
+        users.push(user);
+        state.users.push(user);
+      }
+    });
+    return users;
+  }
+
+  function generateSubscriptions(customers, accounts) {
+    const subscriptions = [];
+    customers.forEach((customer, idx) => {
+      const plan = state.pricingPlans.find(p => p.id === customer.planId);
+      const startDate = customer.createdAt;
+      const endDate = customer.status === "churned" ? addDays(customer.updatedAt, seededRandomInt(1, 30)) : null;
+      const subscription = {
+        id: generateId("sub"),
+        customerId: customer.id,
+        accountId: accounts[idx].id,
+        planId: plan.id,
+        status: customer.status === "churned" ? "cancelled" : "active",
+        startDate,
+        endDate,
+        currentPeriodStart: startDate,
+        currentPeriodEnd: endDate || addMonths(startDate, 12),
+        billingCycle: seededRandom() > 0.6 ? "annual" : "monthly",
+        price: customer.annualPrice,
+        taxRate: accounts[idx].taxRate,
+        taxAmount: 0,
+        totalAmount: 0,
+        nextBillingDate: endDate || addMonths(startDate, 12),
+        autoRenew: seededRandom() > 0.3,
+        cancellationReason: customer.status === "churned" ? seededRandomChoice(["price", "feature_missing", "competitor", "budget_cut", "poor_support"]) : null,
+        cancellationDate: endDate,
+        upgradeHistory: [],
+        downgradeHistory: [],
+        creditApplied: 0,
+        discountApplied: 0,
+        notes: null
+      };
+      subscriptions.push(subscription);
+      state.subscriptions.push(subscription);
+    });
+    return subscriptions;
+  }
+
+  function generateInvoices(subscriptions, accounts) {
+    const invoices = [];
+    subscriptions.forEach(sub => {
+      const account = state.accounts.find(a => a.id === sub.accountId);
+      const numInvoices = sub.billingCycle === "annual" ? 1 : seededRandomInt(1, 12);
+      for (let i = 0; i < numInvoices; i++) {
+        const invoiceDate = addMonths(sub.currentPeriodStart, i);
+        const dueDate = addDays(invoiceDate, 30);
+        const subtotal = sub.price;
+        const taxAmount = account.taxExempt ? 0 : subtotal * account.taxRate;
+        const totalAmount = subtotal + taxAmount;
+        const invoice = {
+          id: generateId("inv"),
+          subscriptionId: sub.id,
+          customerId: sub.customerId,
+          accountId: sub.accountId,
+          invoiceDate,
+          dueDate,
+          paidDate: null,
+          status: seededRandom() > 0.15 ? "paid" : "unpaid",
+          subtotal,
+          taxAmount,
+          totalAmount,
+          currency: account.currency,
+          lineItems: [
+            { description: `${state.pricingPlans.find(p => p.id === sub.planId).name} - ${sub.billingCycle} billing`, quantity: 1, unitPrice: subtotal, amount: subtotal }
+          ],
+          discount: sub.discountApplied,
+          creditApplied: sub.creditApplied,
+          paymentMethod: account.paymentMethod,
+          notes: null,
+          pdfUrl: null
+        };
+        invoices.push(invoice);
+        state.invoices.push(invoice);
+        if (invoice.status === "paid") {
+          invoice.paidDate = addDays(invoiceDate, seededRandomInt(0, 25));
+        }
+      }
+    });
+    return invoices;
+  }
+
+  function generatePayments(invoices) {
+    const payments = [];
+    invoices.forEach(invoice => {
+      if (invoice.status === "paid") {
+        const payment = {
+          id: generateId("pay"),
+          invoiceId: invoice.id,
+          subscriptionId: invoice.subscriptionId,
+          customerId: invoice.customerId,
+          amount: invoice.totalAmount,
+          method: invoice.paymentMethod,
+          status: "completed",
+          processedAt: invoice.paidDate,
+          transactionId: seededRandomString(24),
+          gateway: seededRandomChoice(["stripe", "paypal", "adyen"]),
+          fee: invoice.totalAmount * 0.029 + 0.30,
+          netAmount: invoice.totalAmount - (invoice.totalAmount * 0.029 + 0.30),
+          notes: null
+        };
+        payments.push(payment);
+        state.payments.push(payment);
+      }
+    });
+    return payments;
+  }
+
+  function generateFailedPayments(invoices) {
+    const failedInvoices = invoices.filter(inv => inv.status === "unpaid");
+    failedInvoices.forEach(invoice => {
+      if (seededRandom() > 0.5) {
+        const failedPayment = {
+          id: generateId("pay"),
+          invoiceId: invoice.id,
+          subscriptionId: invoice.subscriptionId,
+          customerId: invoice.customerId,
+          amount: invoice.totalAmount,
+          method: invoice.paymentMethod,
+          status: "failed",
+          processedAt: addDays(invoice.invoiceDate, seededRandomInt(1, 30)),
+          transactionId: seededRandomString(24),
+          gateway: seededRandomChoice(["stripe", "paypal", "adyen"]),
+          fee: 0,
+          netAmount: 0,
+          failureReason: seededRandomChoice(["insufficient_funds", "card_expired", "card_declined", "network_error", "fraud_suspected"]),
+          notes: null
+        };
+        state.payments.push(failedPayment);
+      }
+    });
+  }
+
+  function generateRefunds(payments) {
+    const refundablePayments = payments.filter(p => p.status === "completed" && seededRandom() > 0.92);
+    refundablePayments.forEach(payment => {
+      const refund = {
+        id: generateId("ref"),
+        paymentId: payment.id,
+        invoiceId: payment.invoiceId,
+        subscriptionId: payment.subscriptionId,
+        customerId: payment.customerId,
+        amount: payment.netAmount * seededRandomFloat(0.1, 1.0),
+        reason: seededRandomChoice(["duplicate_charge", "service_not_delivered", "billing_error", "customer_request", "fraud"]),
+        status: "completed",
+        processedAt: addDays(payment.processedAt, seededRandomInt(1, 14)),
+        gatewayRefundId: seededRandomString(24),
+        notes: null
+      };
+      state.payments.push({ ...refund, id: generateId("pay"), status: "refund" });
+      state.payments.push(refund);
+    });
+  }
+
+  function generateCredits(customers) {
+    customers.forEach(customer => {
+      if (seededRandom() > 0.85) {
+        const credit = {
+          id: generateId("cred"),
+          customerId: customer.id,
+          amount: seededRandomFloat(50, 500),
+          reason: seededRandomChoice(["service_outage", "billing_error", "goodwill", "promotional"]),
+          status: "active",
+          createdAt: seededRandomDate(customer.createdAt, addMonths(customer.createdAt, 6)),
+          expiresAt: addMonths(customer.createdAt, 12),
+          notes: null
+        };
+        state.payments.push(credit);
+      }
+    });
+  }
+
+  function generateSupportTickets(customers, subscriptions) {
+    const tickets = [];
+    const priorities = ["low", "medium", "high", "critical"];
+    const priorityWeights = [0.3, 0.4, 0.2, 0.1];
+    const categories = ["billing", "technical", "feature_request", "account", "security", "integration", "performance"];
+    const statuses = ["open", "in_progress", "pending", "resolved", "closed"];
+    const slaHours = { low: 72, medium: 48, high: 24, critical: 4 };
+
+    customers.forEach((customer, idx) => {
+      const ticketCount = customer.status === "churned" ? seededRandomInt(0, 3) : seededRandomInt(1, 8);
+      for (let i = 0; i < ticketCount; i++) {
+        const priority = weightedRandom(priorities, priorityWeights);
+        const status = seededRandomChoice(statuses);
+        const createdAt = seededRandomDate(customer.createdAt, addMonths(customer.createdAt, 6));
+        const resolvedAt = status === "resolved" || status === "closed" ? addDays(createdAt, seededRandomInt(1, 30)) : null;
+        const subscription = subscriptions[idx];
+        const isHighValue = customer.tier === "enterprise" || customer.tier === "business";
+        const effectivePriority = isHighValue && priority === "medium" ? "high" : priority;
+        const ticket = {
+          id: generateId("ticket"),
+          customerId: customer.id,
+          accountId: state.accounts[idx].id,
+          subscriptionId: subscription.id,
+          title: `${seededRandomChoice(categories)}: ${seededRandomString(8)}`,
+          description: `Issue reported by ${customer.name} regarding ${seededRandomChoice(["billing", "access", "performance", "integration", "feature"])}`,
+          category: seededRandomChoice(categories),
+          priority: effectivePriority,
+          status,
+          createdAt,
+          resolvedAt,
+          slaDeadline: addHours(createdAt, slaHours[effectivePriority]),
+          slaMet: resolvedAt ? daysBetween(createdAt, resolvedAt) * 24 <= slaHours[effectivePriority] : null,
+          assignedTo: state.users.filter(u => u.accountId === state.accounts[idx].id && u.role === "admin")[0]?.id || null,
+          tags: [seededRandomChoice(categories), seededRandomChoice(["urgent", "bug", "enhancement", "question"])],
+          comments: seededRandomInt(0, 5),
+          resolutionTime: resolvedAt ? daysBetween(createdAt, resolvedAt) : null,
+          escalationCount: seededRandomInt(0, isHighValue ? 3 : 1),
+          isEscalated: seededRandomInt(0, 3) > 0,
+          customerSatisfaction: status === "resolved" || status === "closed" ? seededRandomInt(1, 5) : null,
+          notes: null
+        };
+        tickets.push(ticket);
+        state.supportTickets.push(ticket);
+      }
+    });
+    return tickets;
+  }
+
+  function addHours(date, hours) {
+    const result = new Date(date);
+    result.setHours(result.getHours() + hours);
+    return result;
+  }
+
+  function generateOpportunities(customers) {
+    const opportunities = [];
+    const stages = ["lead", "qualified", "proposal", "negotiation", "closed_won", "closed_lost"];
+    const stagesWeights = [0.2, 0.25, 0.2, 0.15, 0.15, 0.1];
+    const sources = ["inbound", "outbound", "referral", "partner", "event", "website"];
+
+    customers.forEach(customer => {
+      if (customer.status === "active" && seededRandom() > 0.3) {
+        const stage = weightedRandom(stages, stagesWeights);
+        const createdAt = seededRandomDate(customer.createdAt, addMonths(customer.createdAt, 3));
+        const opportunity = {
+          id: generateId("opp"),
+          customerId: customer.id,
+          accountId: state.accounts.find(a => a.customerId === customer.id)?.id || null,
+          title: `Upgrade to ${seededRandomChoice(["Enterprise", "Business", "Professional"])} for ${customer.name}`,
+          stage,
+          source: seededRandomChoice(sources),
+          estimatedValue: customer.tier === "enterprise" ? seededRandomFloat(50000, 500000) : customer.tier === "business" ? seededRandomFloat(10000, 100000) : seededRandomFloat(1000, 20000),
+          actualValue: stage === "closed_won" ? customer.annualPrice : stage === "closed_lost" ? 0 : null,
+          probability: stage === "lead" ? 0.1 : stage === "qualified" ? 0.3 : stage === "proposal" ? 0.5 : stage === "negotiation" ? 0.7 : stage === "closed_won" ? 1.0 : 0,
+          createdAt,
+          closedDate: stage === "closed_won" || stage === "closed_lost" ? addDays(createdAt, seededRandomInt(30, 180)) : null,
+          lostReason: stage === "closed_lost" ? seededRandomChoice(["price", "feature_missing", "competitor", "budget"]) : null,
+          owner: state.users.filter(u => u.role === "admin")[seededRandomInt(0, state.users.filter(u => u.role === "admin").length - 1)]?.id || null,
+          products: [seededRandomChoice(state.products.map(p => p.id))],
+          notes: null,
+          conversionRate: stage === "closed_won" ? 1.0 : 0
+        };
+        opportunities.push(opportunity);
+        state.opportunities.push(opportunity);
+      }
+    });
+    return opportunities;
+  }
+
+  function generateContracts(customers, subscriptions) {
+    const contracts = [];
+    customers.forEach((customer, idx) => {
+      if (customer.status === "active" && (customer.tier === "enterprise" || customer.tier === "business")) {
+        const subscription = subscriptions[idx];
+        const contract = {
+          id: generateId("contract"),
+          customerId: customer.id,
+          subscriptionId: subscription.id,
+          accountId: state.accounts[idx].id,
+          title: `${customer.name} - ${state.pricingPlans.find(p => p.id === subscription.planId).name} Agreement`,
+          startDate: subscription.startDate,
+          endDate: subscription.endDate || addMonths(subscription.startDate, 12),
+          value: subscription.price,
+          terms: seededRandomChoice(["net_30", "net_45", "net_60"]),
+          autoRenew: subscription.autoRenew,
+          renewalNoticeDays: 30,
+          status: "active",
+          signedDate: addDays(subscription.startDate, -seededRandomInt(1, 14)),
+          signedBy: seededRandomName(),
+          version: seededRandomInt(1, 3),
+          clauses: ["confidentiality", "data_protection", "service_level", "termination", "liability"],
+          notes: null
+        };
+        contracts.push(contract);
+        state.contracts.push(contract);
+      }
+    });
+    return contracts;
+  }
+
+  function generateUsageRecords(customers, subscriptions) {
+    const records = [];
+    customers.forEach((customer, idx) => {
+      const subscription = subscriptions[idx];
+      const plan = state.pricingPlans.find(p => p.id === subscription.planId);
+      const recordCount = seededRandomInt(5, 30);
+      for (let i = 0; i < recordCount; i++) {
+        const record = {
+          id: generateId("usage"),
+          customerId: customer.id,
+          subscriptionId: subscription.id,
+          accountId: state.accounts[idx].id,
+          date: addDays(subscription.startDate, seededRandomInt(0, 365)),
+          apiCalls: seededRandomInt(0, plan.apiLimit),
+          storageUsed: seededRandomFloat(0, 1000),
+          computeHours: seededRandomFloat(0, 500),
+          bandwidth: seededRandomFloat(0, 100),
+          activeUsers: seededRandomInt(1, plan.maxUsers === -1 ? 50 : plan.maxUsers),
+          requests: seededRandomInt(0, plan.apiLimit),
+          errors: seededRandomInt(0, Math.floor(plan.apiLimit * 0.01)),
+          notes: null
+        };
+        records.push(record);
+        state.usageRecords.push(record);
+      }
+    });
+    return records;
+  }
+
+  function generateApiRequests(customers, subscriptions) {
+    const requests = [];
+    customers.forEach((customer, idx) => {
+      const subscription = subscriptions[idx];
+      const plan = state.pricingPlans.find(p => p.id === subscription.planId);
+      const requestCount = seededRandomInt(10, 100);
+      for (let i = 0; i < requestCount; i++) {
+        const isRateLimited = seededRandom() > 0.95;
+        const request = {
+          id: generateId("api"),
+          customerId: customer.id,
+          subscriptionId: subscription.id,
+          accountId: state.accounts[idx].id,
+          userId: state.users.filter(u => u.accountId === state.accounts[idx].id)[seededRandomInt(0, state.users.filter(u => u.accountId === state.accounts[idx].id).length - 1)]?.id || null,
+          timestamp: seededRandomDate(subscription.startDate, addMonths(subscription.startDate, 6)),
+          endpoint: seededRandomChoice(["/api/v1/analytics", "/api/v1/data", "/api/v1/users", "/api/v1/reports", "/api/v1/integrations"]),
+          method: seededRandomChoice(["GET", "POST", "PUT", "DELETE"]),
+          statusCode: isRateLimited ? 429 : seededRandom() > 0.05 ? 200 : seededRandomChoice([400, 401, 403, 404, 500]),
+          responseTime: seededRandomFloat(10, 2000),
+          bytesSent: seededRandomInt(100, 10000),
+          bytesReceived: seededRandomInt(100, 50000),
+          rateLimitRemaining: isRateLimited ? 0 : seededRandomInt(0, plan.apiLimit),
+          rateLimitReset: addHours(new Date(), 1),
+          notes: null
+        };
+        requests.push(request);
+        state.apiRequests.push(request);
+      }
+    });
+    return requests;
+  }
+
+  function generateAuditLogs(customers, subscriptions) {
+    const logs = [];
+    const actions = ["create", "update", "delete", "login", "logout", "export", "import", "upgrade", "downgrade", "cancel"];
+    const actionWeights = [0.2, 0.3, 0.05, 0.15, 0.1, 0.05, 0.05, 0.05, 0.03, 0.02];
+    customers.forEach((customer, idx) => {
+      const logCount = seededRandomInt(5, 20);
+      for (let i = 0; i < logCount; i++) {
+        const action = weightedRandom(actions, actionWeights);
+        const log = {
+          id: generateId("audit"),
+          customerId: customer.id,
+          accountId: state.accounts[idx].id,
+          userId: state.users.filter(u => u.accountId === state.accounts[idx].id)[seededRandomInt(0, state.users.filter(u => u.accountId === state.accounts[idx].id).length - 1)]?.id || null,
+          action,
+          resource: seededRandomChoice(["customer", "subscription", "invoice", "user", "project", "task", "ticket"]),
+          resourceId: generateId("res"),
+          timestamp: seededRandomDate(customer.createdAt, addMonths(customer.createdAt, 6)),
+          ipAddress: `${seededRandomInt(1, 255)}.${seededRandomInt(0, 255)}.${seededRandomInt(0, 255)}.${seededRandomInt(0, 255)}`,
+          userAgent: seededRandomChoice(["Mozilla/5.0", "Chrome/120.0", "Safari/17.0", "curl/8.0"]),
+          success: seededRandom() > 0.1,
+          changes: action === "update" ? { before: {}, after: {} } : null,
+          notes: null
+        };
+        logs.push(log);
+        state.auditLogs.push(log);
+      }
+    });
+    return logs;
+  }
+
+  function generateNotifications(customers, subscriptions, invoices) {
+    const notifications = [];
+    const types = ["invoice_due", "payment_failed", "subscription_renewal", "ticket_assigned", "opportunity_updated", "usage_warning", "security_alert", "feature_update"];
+    const typesWeights = [0.2, 0.15, 0.15, 0.15, 0.1, 0.1, 0.1, 0.05];
+
+    invoices.forEach(invoice => {
+      if (invoice.status === "unpaid") {
+        notifications.push({
+          id: generateId("notif"),
+          customerId: invoice.customerId,
+          accountId: invoice.accountId,
+          type: "payment_failed",
+          title: "Payment failed for invoice",
+          message: `Payment of $${invoice.totalAmount.toFixed(2)} failed for invoice ${invoice.id}`,
+          channel: seededRandomChoice(["email", "sms", "in_app"]),
+          status: "sent",
+          sentAt: addDays(invoice.invoiceDate, seededRandomInt(1, 5)),
+          readAt: null,
+          notes: null
+        });
+      }
+    });
+
+    customers.forEach((customer, idx) => {
+      const notifCount = seededRandomInt(2, 8);
+      for (let i = 0; i < notifCount; i++) {
+        const type = weightedRandom(types, typesWeights);
+        notifications.push({
+          id: generateId("notif"),
+          customerId: customer.id,
+          accountId: state.accounts[idx].id,
+          type,
+          title: `${type.replace("_", " ").replace(/\b\w/g, c => c.toUpperCase())} notification`,
+          message: `Notification for ${customer.name} regarding ${type}`,
+          channel: seededRandomChoice(["email", "sms", "in_app", "webhook"]),
+          status: seededRandom() > 0.1 ? "sent" : "failed",
+          sentAt: seededRandomDate(customer.createdAt, addMonths(customer.createdAt, 6)),
+          readAt: seededRandom() > 0.5 ? addDays(seededRandomDate(customer.createdAt, addMonths(customer.createdAt, 6)), seededRandomInt(0, 7)) : null,
+          notes: null
+        });
+      }
+    });
+    state.notifications = notifications;
+    return notifications;
+  }
+
+  function generateFeatureFlags() {
+    const flags = [
+      { key: "new_dashboard", enabled: true, rollout: 1.0, description: "New analytics dashboard" },
+      { key: "dark_mode", enabled: true, rollout: 0.8, description: "Dark mode UI" },
+      { key: "beta_api", enabled: false, rollout: 0.0, description: "Beta API v2" },
+      { key: "advanced_reporting", enabled: true, rollout: 0.5, description: "Advanced reporting module" },
+      { key: "ai_assistant", enabled: false, rollout: 0.1, description: "AI-powered assistant" },
+      { key: "custom_themes", enabled: true, rollout: 0.3, description: "Custom theme support" },
+      { key: "real_time_sync", enabled: true, rollout: 0.7, description: "Real-time data synchronization" },
+      { key: "export_to_pdf", enabled: true, rollout: 1.0, description: "PDF export functionality" },
+      { key: "multi_currency", enabled: true, rollout: 0.6, description: "Multi-currency support" },
+      { key: "sso_integration", enabled: true, rollout: 0.4, description: "SSO authentication" }
+    ];
+    state.featureFlags = new Map(flags.map(f => [f.key, f]));
+    return flags;
+  }
+
+  function generatePermissions() {
+    const permissions = new Map();
+    const roles = ["admin", "manager", "analyst", "viewer", "developer"];
+    const allPermissions = ["read", "write", "delete", "manage_users", "manage_billing", "manage_integrations", "view_reports", "export_data", "api_access", "admin_access"];
+    roles.forEach(role => {
+      const rolePermissions = role === "admin" ? allPermissions :
+        role === "manager" ? ["read", "write", "manage_users", "view_reports", "export_data"] :
+        role === "analyst" ? ["read", "write", "view_reports", "export_data"] :
+        role === "developer" ? ["read", "write", "api_access"] :
+        ["read"];
+      permissions.set(role, new Set(rolePermissions));
+    });
+    state.permissions = permissions;
+    return permissions;
+  }
+
+  function generateTeams(customers) {
+    const teams = [];
+    const teamNames = ["Engineering", "Sales", "Marketing", "Support", "Product", "Data", "Security", "DevOps"];
+    customers.forEach((customer, idx) => {
+      const teamCount = seededRandomInt(1, 4);
+      for (let i = 0; i < teamCount; i++) {
+        const team = {
+          id: generateId("team"),
+          customerId: customer.id,
+          accountId: state.accounts[idx].id,
+          name: `${seededRandomChoice(teamNames)} Team ${seededRandomInt(1, 5)}`,
+          description: `Team for ${customer.name}`,
+          status: "active",
+          createdAt: seededRandomDate(customer.createdAt, addMonths(customer.createdAt, 3)),
+          members: state.users.filter(u => u.accountId === state.accounts[idx].id).slice(0, seededRandomInt(2, 10)).map(u => u.id),
+          lead: state.users.filter(u => u.accountId === state.accounts[idx].id && u.role === "admin")[0]?.id || null,
+          notes: null
+        };
+        teams.push(team);
+        state.teams.push(team);
+      }
+    });
+    return teams;
+  }
+
+  function generateProjects(customers) {
+    const projects = [];
+    const projectTypes = ["implementation", "migration", "integration", "customization", "training", "support"];
+    customers.forEach((customer, idx) => {
+      const projectCount = seededRandomInt(1, 5);
+      for (let i = 0; i < projectCount; i++) {
+        const project = {
+          id: generateId("proj"),
+          customerId: customer.id,
+          accountId: state.accounts[idx].id,
+          name: `${seededRandomChoice(projectTypes)} - ${seededRandomString(6)}`,
+          type: seededRandomChoice(projectTypes),
+          status: seededRandomChoice(["planning", "in_progress", "completed", "on_hold", "cancelled"]),
+          startDate: seededRandomDate(customer.createdAt, addMonths(customer.createdAt, 3)),
+          endDate: seededRandomChoice(["planning", "in_progress", "on_hold"]).includes(seededRandomChoice(["planning", "in_progress", "completed", "on_hold", "cancelled"])) ? null : addDays(seededRandomDate(customer.createdAt, addMonths(customer.createdAt, 3)), seededRandomInt(30, 365)),
+          budget: seededRandomFloat(5000, 100000),
+          spent: seededRandomFloat(0, 100000),
+          progress: seededRandomFloat(0, 100),
+          manager: state.users.filter(u => u.accountId === state.accounts[idx].id && u.role === "admin")[0]?.id || null,
+          teamId: state.teams.filter(t => t.customerId === customer.id)[0]?.id || null,
+          notes: null
+        };
+        projects.push(project);
+        state.projects.push(project);
+      }
+    });
+    return projects;
+  }
+
+  function generateTasks(projects) {
+    const tasks = [];
+    const taskStatuses = ["todo", "in_progress", "in_review", "done", "blocked"];
+    const taskTypes = ["feature", "bug", "task", "epic", "story"];
+    projects.forEach(project => {
+      const taskCount = seededRandomInt(3, 15);
+      for (let i = 0; i < taskCount; i++) {
+        const status = seededRandomChoice(taskStatuses);
+        const task = {
+          id: generateId("task"),
+          projectId: project.id,
+          customerId: project.customerId,
+          accountId: project.accountId,
+          title: `${seededRandomChoice(taskTypes)}: ${seededRandomString(10)}`,
+          type: seededRandomChoice(taskTypes),
+          status,
+          priority: seededRandomChoice(["low", "medium", "high", "critical"]),
+          assignee: state.users.filter(u => u.accountId === project.accountId)[seededRandomInt(0, state.users.filter(u => u.accountId === project.accountId).length - 1)]?.id || null,
+          reporter: state.users.filter(u => u.accountId === project.accountId)[seededRandomInt(0, state.users.filter(u => u.accountId === project.accountId).length - 1)]?.id || null,
+          createdAt: seededRandomDate(project.startDate, addDays(project.startDate, 30)),
+          dueDate: addDays(new Date(), seededRandomInt(-30, 90)),
+          completedAt: status === "done" ? addDays(new Date(), seededRandomInt(0, 30)) : null,
+          estimatedHours: seededRandomFloat(1, 40),
+          actualHours: status === "done" ? seededRandomFloat(1, 40) : null,
+          dependencies: [],
+          tags: [seededRandomChoice(["frontend", "backend", "database", "api", "ui", "security"])],
+          description: `Task description for ${project.name}`,
+          notes: null
+        };
+        tasks.push(task);
+        state.tasks.push(task);
+      }
+    });
+    return tasks;
+  }
+
+  function calculateMRR() {
+    return state.customers
+      .filter(c => c.status === "active")
+      .reduce((sum, c) => sum + c.mrr, 0);
+  }
+
+  function calculateARR() {
+    return state.customers
+      .filter(c => c.status === "active")
+      .reduce((sum, c) => sum + c.arr, 0);
+  }
+
+  function calculateChurnRate() {
+    const total = state.customers.length;
+    const churned = state.customers.filter(c => c.status === "churned").length;
+    return total > 0 ? churned / total : 0;
+  }
+
+  function calculateAverageRevenuePerCustomer() {
+    const active = state.customers.filter(c => c.status === "active");
+    return active.length > 0 ? sumBy(active, c => c.arr) / active.length : 0;
+  }
+
+  function calculateOutstandingRevenue() {
+    return state.invoices
+      .filter(inv => inv.status === "unpaid")
+      .reduce((sum, inv) => sum + inv.totalAmount, 0);
+  }
+
+  function calculateTotalPayments() {
+    return state.payments
+      .filter(p => p.status === "completed")
+      .reduce((sum, p) => sum + p.amount, 0);
+  }
+
+  function calculateFailedPayments() {
+    return state.payments
+      .filter(p => p.status === "failed")
+      .length;
+  }
+
+  function calculateRefunds() {
+    return state.payments
+      .filter(p => p.status === "refund")
+      .reduce((sum, p) => sum + p.amount, 0);
+  }
+
+  function calculateOpenTickets() {
+    return state.supportTickets
+      .filter(t => t.status === "open" || t.status === "in_progress" || t.status === "pending")
+      .length;
+  }
+
+  function calculateAverageResolutionTime() {
+    const resolved = state.supportTickets.filter(t => t.resolutionTime !== null);
+    return resolved.length > 0 ? sumBy(resolved, t => t.resolutionTime) / resolved.length : 0;
+  }
+
+  function calculatePipelineValue() {
+    return state.opportunities
+      .filter(o => o.stage !== "closed_won" && o.stage !== "closed_lost")
+      .reduce((sum, o) => sum + o.estimatedValue * o.probability, 0);
+  }
+
+  function calculateClosedWonRevenue() {
+    return state.opportunities
+      .filter(o => o.stage === "closed_won")
+      .reduce((sum, o) => sum + (o.actualValue || 0), 0);
+  }
+
+  function calculateApiErrors() {
+    return state.apiRequests
+      .filter(r => r.statusCode >= 400)
+      .length;
+  }
+
+  function calculateCustomerLifetimeValue() {
+    return state.customers
+      .filter(c => c.status === "active")
+      .reduce((sum, c) => {
+        const monthsActive = monthsBetween(c.createdAt, new Date());
+        return sum + c.mrr * Math.max(monthsActive, 1);
+      }, 0);
+  }
+
+  function calculateChurnedCustomers() {
+    return state.customers.filter(c => c.status === "churned").length;
+  }
+
+  function calculateActiveCustomers() {
+    return state.customers.filter(c => c.status === "active").length;
+  }
+
+  async function runSimulation() {
+    const pricingPlans = generatePricingPlans();
+    const products = generateProducts();
+    const customers = generateCustomers(120);
+    const accounts = generateAccounts(customers);
+    const users = generateUsers(customers, accounts);
+    const subscriptions = generateSubscriptions(customers, accounts);
+    const invoices = generateInvoices(subscriptions, accounts);
+    const payments = generatePayments(invoices);
+    generateFailedPayments(invoices);
+    generateRefunds(payments);
+    generateCredits(customers);
+    const tickets = generateSupportTickets(customers, subscriptions);
+    const opportunities = generateOpportunities(customers);
+    const contracts = generateContracts(customers, subscriptions);
+    const usageRecords = generateUsageRecords(customers, subscriptions);
+    const apiRequests = generateApiRequests(customers, subscriptions);
+    const auditLogs = generateAuditLogs(customers, subscriptions);
+    const notifications = generateNotifications(customers, subscriptions, invoices);
+    const featureFlags = generateFeatureFlags();
+    const permissions = generatePermissions();
+    const teams = generateTeams(customers);
+    const projects = generateProjects(customers);
+    const tasks = generateTasks(projects);
+
+    const metrics = {
+      totalCustomers: state.customers.length,
+      activeCustomers: calculateActiveCustomers(),
+      churnedCustomers: calculateChurnedCustomers(),
+      MRR: calculateMRR(),
+      ARR: calculateARR(),
+      averageRevenuePerCustomer: calculateAverageRevenuePerCustomer(),
+      churnRate: calculateChurnRate(),
+      totalInvoices: state.invoices.length,
+      outstandingRevenue: calculateOutstandingRevenue(),
+      totalPayments: calculateTotalPayments(),
+      failedPayments: calculateFailedPayments(),
+      refunds: calculateRefunds(),
+      openTickets: calculateOpenTickets(),
+      averageResolutionTime: calculateAverageResolutionTime(),
+      pipelineValue: calculatePipelineValue(),
+      closedWonRevenue: calculateClosedWonRevenue(),
+      APIRequests: state.apiRequests.length,
+      APIErrors: calculateApiErrors(),
+      customerLifetimeValue: calculateCustomerLifetimeValue(),
+      totalUsers: state.users.length,
+      totalTickets: state.supportTickets.length,
+      totalOpportunities: state.opportunities.length,
+      totalProjects: state.projects.length,
+      totalTasks: state.tasks.length,
+      totalAuditLogs: state.auditLogs.length,
+      totalNotifications: state.notifications.length,
+      totalContracts: state.contracts.length,
+      totalUsageRecords: state.usageRecords.length
+    };
+
+    const assertions = [];
+    let assertionCount = 0;
+
+    function assert(condition, message) {
+      assertionCount++;
+      if (!condition) {
+        throw new ValidationError(`Assertion ${assertionCount} failed: ${message}`);
+      }
+      assertions.push({ assertion: assertionCount, passed: true, message });
+    }
+
+    assert(state.customers.length >= 100, `Expected at least 100 customers, got ${state.customers.length}`);
+    assert(state.users.length > 0, "Expected at least one user");
+    assert(state.accounts.length === state.customers.length, "Account count must match customer count");
+    assert(state.subscriptions.length === state.customers.length, "Subscription count must match customer count");
+    assert(state.invoices.length > 0, "Expected at least one invoice");
+    assert(state.payments.length > 0, "Expected at least one payment");
+    assert(state.supportTickets.length > 0, "Expected at least one support ticket");
+    assert(state.opportunities.length > 0, "Expected at least one opportunity");
+    assert(state.projects.length > 0, "Expected at least one project");
+    assert(state.tasks.length > 0, "Expected at least one task");
+    assert(state.auditLogs.length > 0, "Expected at least one audit log");
+    assert(state.notifications.length > 0, "Expected at least one notification");
+    assert(state.apiRequests.length > 0, "Expected at least one API request");
+    assert(state.usageRecords.length > 0, "Expected at least one usage record");
+
+    assert(metrics.MRR >= 0, "MRR cannot be negative");
+    assert(metrics.ARR > 0, "ARR must be positive for active customers");
+    assert(metrics.churnRate >= 0 && metrics.churnRate <= 1, "Churn rate must be between 0 and 1");
+    assert(metrics.averageRevenuePerCustomer > 0, "Average revenue per customer must be positive");
+    assert(metrics.outstandingRevenue >= 0, "Outstanding revenue cannot be negative");
+    assert(metrics.totalPayments > 0, "Total payments must be positive");
+    assert(metrics.failedPayments >= 0, "Failed payments cannot be negative");
+    assert(metrics.refunds >= 0, "Refunds cannot be negative");
+    assert(metrics.openTickets >= 0, "Open tickets cannot be negative");
+    assert(metrics.averageResolutionTime >= 0, "Average resolution time cannot be negative");
+    assert(metrics.pipelineValue >= 0, "Pipeline value cannot be negative");
+    assert(metrics.closedWonRevenue >= 0, "Closed won revenue cannot be negative");
+    assert(metrics.APIRequests > 0, "API requests must be positive");
+    assert(metrics.APIErrors >= 0, "API errors cannot be negative");
+
+    assert(metrics.activeCustomers + metrics.churnedCustomers === metrics.totalCustomers, "Active + churned must equal total customers");
+    assert(metrics.activeCustomers > 0, "Must have at least one active customer");
+    assert(metrics.churnedCustomers > 0, "Must have at least one churned customer");
+
+    const activeCustomers = state.customers.filter(c => c.status === "active");
+    const churnedCustomers = state.customers.filter(c => c.status === "churned");
+    assert(activeCustomers.length > 0, "Must have active customers");
+    assert(churnedCustomers.length > 0, "Must have churned customers");
+
+    const activeSubscriptions = state.subscriptions.filter(s => s.status === "active");
+    const cancelledSubscriptions = state.subscriptions.filter(s => s.status === "cancelled");
+    assert(activeSubscriptions.length > 0, "Must have active subscriptions");
+    assert(cancelledSubscriptions.length > 0, "Must have cancelled subscriptions");
+
+    const paidInvoices = state.invoices.filter(inv => inv.status === "paid");
+    const unpaidInvoices = state.invoices.filter(inv => inv.status === "unpaid");
+    assert(paidInvoices.length > 0, "Must have paid invoices");
+    assert(unpaidInvoices.length > 0, "Must have unpaid invoices");
+
+    const completedPayments = state.payments.filter(p => p.status === "completed");
+    const failedPayments = state.payments.filter(p => p.status === "failed");
+    assert(completedPayments.length > 0, "Must have completed payments");
+    assert(failedPayments.length > 0, "Must have failed payments");
+
+    const refunds = state.payments.filter(p => p.status === "refund");
+    assert(refunds.length > 0, "Must have refunds");
+
+    const openTickets = state.supportTickets.filter(t => t.status === "open" || t.status === "in_progress" || t.status === "pending");
+    const resolvedTickets = state.supportTickets.filter(t => t.status === "resolved" || t.status === "closed");
+    assert(openTickets.length > 0, "Must have open tickets");
+    assert(resolvedTickets.length > 0, "Must have resolved tickets");
+
+    const closedWonOpps = state.opportunities.filter(o => o.stage === "closed_won");
+    const closedLostOpps = state.opportunities.filter(o => o.stage === "closed_lost");
+    assert(closedWonOpps.length > 0, "Must have closed won opportunities");
+    assert(closedLostOpps.length > 0, "Must have closed lost opportunities");
+
+    const enterprisePlans = state.pricingPlans.filter(p => p.tier === "enterprise");
+    const basicPlans = state.pricingPlans.filter(p => p.tier === "free" || p.tier === "starter");
+    assert(enterprisePlans.length > 0, "Must have enterprise plans");
+    assert(basicPlans.length > 0, "Must have basic plans");
+
+    const enterpriseApiLimit = enterprisePlans[0].apiLimit;
+    const basicApiLimit = basicPlans[0].apiLimit;
+    assert(enterpriseApiLimit > basicApiLimit, "Enterprise plans must have higher API limits than basic plans");
+
+    const enterpriseCustomers = state.customers.filter(c => c.tier === "enterprise");
+    assert(enterpriseCustomers.length > 0, "Must have enterprise customers");
+
+    const enterpriseSubscriptions = state.subscriptions.filter(s => s.planId === enterprisePlans[0].id);
+    assert(enterpriseSubscriptions.length > 0, "Must have enterprise subscriptions");
+
+    const highValueCustomers = state.customers.filter(c => c.tier === "enterprise" || c.tier === "business");
+    const highValueTickets = state.supportTickets.filter(t => highValueCustomers.some(c => c.id === t.customerId));
+    assert(highValueTickets.length > 0, "Must have tickets for high-value customers");
+
+    const highValuePriorityTickets = highValueTickets.filter(t => t.priority === "high" || t.priority === "critical");
+    assert(highValuePriorityTickets.length > 0, "High-value customers must have high priority tickets");
+
+    const paidInvoiceIds = new Set(paidInvoices.map(inv => inv.id));
+    const paidPaymentInvoiceIds = new Set(completedPayments.map(p => p.invoiceId));
+    const allPaidInvoicesHavePayments = paidInvoices.every(inv => paidPaymentInvoiceIds.has(inv.id));
+    assert(allPaidInvoicesHavePayments, "All paid invoices must have associated payments");
+
+    const enterprisePlan = state.pricingPlans.find(p => p.tier === "enterprise");
+    assert(enterprisePlan.volumeDiscount >= 0.1, "Enterprise plans must have volume discount >= 10%");
+
+    const businessPlan = state.pricingPlans.find(p => p.tier === "business");
+    assert(businessPlan.volumeDiscount >= 0.05, "Business plans must have volume discount >= 5%");
+
+    const freePlan = state.pricingPlans.find(p => p.tier === "free");
+    assert(freePlan.monthlyPrice === 0, "Free plan must have zero monthly price");
+
+    const annualDiscounts = state.customers.filter(c => c.annualDiscount > 0);
+    assert(annualDiscounts.length > 0, "Must have customers with annual discounts");
+
+    const churnedSubscriptions = state.subscriptions.filter(s => s.status === "cancelled");
+    const churnedSubsWithReason = churnedSubscriptions.filter(s => s.cancellationReason !== null);
+    assert(churnedSubsWithReason.length > 0, "Cancelled subscriptions must have cancellation reasons");
+
+    const resolvedTicketsWithTime = state.supportTickets.filter(t => t.resolutionTime !== null);
+    assert(resolvedTicketsWithTime.length > 0, "Must have tickets with resolution times");
+
+    const ticketsWithSlaMet = state.supportTickets.filter(t => t.slaMet === true);
+    assert(ticketsWithSlaMet.length > 0, "Must have tickets that met SLA");
+
+    const ticketsWithSlaMissed = state.supportTickets.filter(t => t.slaMet === false);
+    assert(ticketsWithSlaMissed.length > 0, "Must have tickets that missed SLA");
+
+    const closedWonOppsWithCustomer = state.opportunities.filter(o => o.stage === "closed_won" && o.customerId !== null);
+    assert(closedWonOppsWithCustomer.length > 0, "Closed won opportunities must have associated customers");
+
+    const closedLostOppsWithReason = state.opportunities.filter(o => o.stage === "closed_lost" && o.lostReason !== null);
+    assert(closedLostOppsWithReason.length > 0, "Closed lost opportunities must have lost reasons");
+
+    const opportunitiesWithProbability = state.opportunities.filter(o => o.probability >= 0 && o.probability <= 1);
+    assert(opportunitiesWithProbability.length === state.opportunities.length, "All opportunities must have probability between 0 and 1");
+
+    const contractsWithDates = state.contracts.filter(c => c.startDate && c.endDate);
+    assert(contractsWithDates.length > 0, "Must have contracts with dates");
+
+    const contractsWithTerms = state.contracts.filter(c => c.terms !== null);
+    assert(contractsWithTerms.length > 0, "Must have contracts with terms");
+
+    const apiRequestsWithStatus = state.apiRequests.filter(r => r.statusCode >= 200 && r.statusCode <= 599);
+    assert(apiRequestsWithStatus.length === state.apiRequests.length, "All API requests must have valid status codes");
+
+    const apiRequestsWithRateLimit = state.apiRequests.filter(r => r.rateLimitRemaining >= 0);
+    assert(apiRequestsWithRateLimit.length === state.apiRequests.length, "All API requests must have valid rate limit remaining");
+
+    const auditLogsWithAction = state.auditLogs.filter(l => l.action !== null);
+    assert(auditLogsWithAction.length === state.auditLogs.length, "All audit logs must have actions");
+
+    const notificationsWithChannel = state.notifications.filter(n => n.channel !== null);
+    assert(notificationsWithChannel.length === state.notifications.length, "All notifications must have channels");
+
+    const featureFlagKeys = Array.from(state.featureFlags.keys());
+    assert(featureFlagKeys.length > 0, "Must have feature flags");
+
+    const permissionRoles = Array.from(state.permissions.keys());
+    assert(permissionRoles.length > 0, "Must have permission roles");
+
+    const teamsWithMembers = state.teams.filter(t => t.members.length > 0);
+    assert(teamsWithMembers.length > 0, "Must have teams with members");
+
+    const projectsWithBudget = state.projects.filter(p => p.budget > 0);
+    assert(projectsWithBudget.length > 0, "Must have projects with budget");
+
+    const tasksWithAssignee = state.tasks.filter(t => t.assignee !== null);
+    assert(tasksWithAssignee.length > 0, "Must have tasks with assignees");
+
+    const tasksWithDueDate = state.tasks.filter(t => t.dueDate !== null);
+    assert(tasksWithDueDate.length > 0, "Must have tasks with due dates");
+
+    const usageRecordsWithApiCalls = state.usageRecords.filter(r => r.apiCalls >= 0);
+    assert(usageRecordsWithApiCalls.length === state.usageRecords.length, "All usage records must have valid API call counts");
+
+    const usageRecordsWithStorage = state.usageRecords.filter(r => r.storageUsed >= 0);
+    assert(usageRecordsWithStorage.length === state.usageRecords.length, "All usage records must have valid storage values");
+
+    const customersWithValidEmail = state.customers.filter(c => c.email.includes("@"));
+    assert(customersWithValidEmail.length === state.customers.length, "All customers must have valid emails");
+
+    const usersWithValidRole = state.users.filter(u => ["admin", "manager", "analyst", "viewer", "developer"].includes(u.role));
+    assert(usersWithValidRole.length === state.users.length, "All users must have valid roles");
+
+    const usersWithMfa = state.users.filter(u => u.mfaEnabled === true);
+    assert(usersWithMfa.length > 0, "Must have users with MFA enabled");
+
+    const invoicesWithLineItems = state.invoices.filter(inv => inv.lineItems.length > 0);
+    assert(invoicesWithLineItems.length === state.invoices.length, "All invoices must have line items");
+
+    const invoicesWithTax = state.invoices.filter(inv => inv.taxAmount >= 0);
+    assert(invoicesWithTax.length === state.invoices.length, "All invoices must have valid tax amounts");
+
+    const invoicesWithTotal = state.invoices.filter(inv => inv.totalAmount === inv.subtotal + inv.taxAmount - inv.discount - inv.creditApplied);
+    assert(invoicesWithTotal.length === state.invoices.length, "All invoice totals must be correctly calculated");
+
+    const paymentsWithGateway = state.payments.filter(p => p.gateway !== null);
+    assert(paymentsWithGateway.length === state.payments.length, "All payments must have a gateway");
+
+    const ticketsWithCategory = state.supportTickets.filter(t => t.category !== null);
+    assert(ticketsWithCategory.length === state.supportTickets.length, "All tickets must have categories");
+
+    const ticketsWithPriority = state.supportTickets.filter(t => ["low", "medium", "high", "critical"].includes(t.priority));
+    assert(ticketsWithPriority.length === state.supportTickets.length, "All tickets must have valid priorities");
+
+    const opportunitiesWithEstimatedValue = state.opportunities.filter(o => o.estimatedValue > 0);
+    assert(opportunitiesWithEstimatedValue.length === state.opportunities.length, "All opportunities must have positive estimated values");
+
+    const opportunitiesWithStage = state.opportunities.filter(o => ["lead", "qualified", "proposal", "negotiation", "closed_won", "closed_lost"].includes(o.stage));
+    assert(opportunitiesWithStage.length === state.opportunities.length, "All opportunities must have valid stages");
+
+    const subscriptionsWithStartDate = state.subscriptions.filter(s => s.startDate !== null);
+    assert(subscriptionsWithStartDate.length === state.subscriptions.length, "All subscriptions must have start dates");
+
+    const subscriptionsWithBillingCycle = state.subscriptions.filter(s => ["monthly", "annual"].includes(s.billingCycle));
+    assert(subscriptionsWithBillingCycle.length === state.subscriptions.length, "All subscriptions must have valid billing cycles");
+
+    const customersWithIndustry = state.customers.filter(c => c.industry !== null);
+    assert(customersWithIndustry.length === state.customers.length, "All customers must have industries");
+
+    const customersWithEmployeeCount = state.customers.filter(c => c.employeeCount > 0);
+    assert(customersWithEmployeeCount.length === state.customers.length, "All customers must have employee counts");
+
+    const customersWithCreatedAt = state.customers.filter(c => c.createdAt !== null);
+    assert(customersWithCreatedAt.length === state.customers.length, "All customers must have creation dates");
+
+    const customersWithUpdatedAt = state.customers.filter(c => c.updatedAt !== null);
+    assert(customersWithUpdatedAt.length === state.customers.length, "All customers must have update dates");
+
+    const customersWithLastActivity = state.customers.filter(c => c.lastActivity !== null);
+    assert(customersWithLastActivity.length === state.customers.length, "All customers must have last activity dates");
+
+    const customersWithMrr = state.customers.filter(c => c.mrr >= 0);
+    assert(customersWithMrr.length === state.customers.length, "All customers must have valid MRR");
+
+    const customersWithArr = state.customers.filter(c => c.arr >= 0);
+    assert(customersWithArr.length === state.customers.length, "All customers must have valid ARR");
+
+    const customersWithLifetimeValue = state.customers.filter(c => c.lifetimeValue >= 0);
+    assert(customersWithLifetimeValue.length === state.customers.length, "All customers must have valid lifetime values");
+
+    const accountsWithBillingEmail = state.accounts.filter(a => a.billingEmail !== null);
+    assert(accountsWithBillingEmail.length === state.accounts.length, "All accounts must have billing emails");
+
+    const accountsWithPaymentMethod = state.accounts.filter(a => a.paymentMethod !== null);
+    assert(accountsWithPaymentMethod.length === state.accounts.length, "All accounts must have payment methods");
+
+    const accountsWithCurrency = state.accounts.filter(a => a.currency !== null);
+    assert(accountsWithCurrency.length === state.accounts.length, "All accounts must have currencies");
+
+    const accountsWithTaxRate = state.accounts.filter(a => a.taxRate >= 0 && a.taxRate <= 1);
+    assert(accountsWithTaxRate.length === state.accounts.length, "All accounts must have valid tax rates");
+
+    const accountsWithCreditBalance = state.accounts.filter(a => a.creditBalance >= 0);
+    assert(accountsWithCreditBalance.length === state.accounts.length, "All accounts must have valid credit balances");
+
+    const accountsWithStatus = state.accounts.filter(a => ["active", "suspended"].includes(a.status));
+    assert(accountsWithStatus.length === state.accounts.length, "All accounts must have valid statuses");
+
+    const usersWithCreatedAt = state.users.filter(u => u.createdAt !== null);
+    assert(usersWithCreatedAt.length === state.users.length, "All users must have creation dates");
+
+    const usersWithLastLogin = state.users.filter(u => u.lastLogin !== null);
+    assert(usersWithLastLogin.length === state.users.length, "All users must have last login dates");
+
+    const usersWithPermissions = state.users.filter(u => u.permissions.length > 0);
+    assert(usersWithPermissions.length === state.users.length, "All users must have permissions");
+
+    const usersWithTimezone = state.users.filter(u => u.timezone !== null);
+    assert(usersWithTimezone.length === state.users.length, "All users must have timezones");
+
+    const usersWithLanguage = state.users.filter(u => u.language !== null);
+    assert(usersWithLanguage.length === state.users.length, "All users must have languages");
+
+    const usersWithStatus = state.users.filter(u => ["active", "inactive"].includes(u.status));
+    assert(usersWithStatus.length === state.users.length, "All users must have valid statuses");
+
+    const ticketsWithCreatedAt = state.supportTickets.filter(t => t.createdAt !== null);
+    assert(ticketsWithCreatedAt.length === state.supportTickets.length, "All tickets must have creation dates");
+
+    const ticketsWithSlaDeadline = state.supportTickets.filter(t => t.slaDeadline !== null);
+    assert(ticketsWithSlaDeadline.length === state.supportTickets.length, "All tickets must have SLA deadlines");
+
+    const ticketsWithTags = state.supportTickets.filter(t => t.tags.length > 0);
+    assert(ticketsWithTags.length === state.supportTickets.length, "All tickets must have tags");
+
+    const ticketsWithComments = state.supportTickets.filter(t => t.comments >= 0);
+    assert(ticketsWithComments.length === state.supportTickets.length, "All tickets must have valid comment counts");
+
+    const ticketsWithSatisfaction = state.supportTickets.filter(t => t.customerSatisfaction === null || (t.customerSatisfaction >= 1 && t.customerSatisfaction <= 5));
+    assert(ticketsWithSatisfaction.length === state.supportTickets.length, "All tickets must have valid satisfaction scores");
+
+    const ticketsWithEscalation = state.supportTickets.filter(t => t.escalationCount >= 0);
+    assert(ticketsWithEscalation.length === state.supportTickets.length, "All tickets must have valid escalation counts");
+
+    const ticketsWithStatus = state.supportTickets.filter(t => ["open", "in_progress", "pending", "resolved", "closed"].includes(t.status));
+    assert(ticketsWithStatus.length === state.supportTickets.length, "All tickets must have valid statuses");
+
+    const ticketsWithTitle = state.supportTickets.filter(t => t.title !== null);
+    assert(ticketsWithTitle.length === state.supportTickets.length, "All tickets must have titles");
+
+    const ticketsWithDescription = state.supportTickets.filter(t => t.description !== null);
+    assert(ticketsWithDescription.length === state.supportTickets.length, "All tickets must have descriptions");
+
+    const ticketsWithAssignedTo = state.supportTickets.filter(t => t.assignedTo === null || typeof t.assignedTo === "string");
+    assert(ticketsWithAssignedTo.length === state.supportTickets.length, "All tickets must have valid assignedTo values");
+
+    const opportunitiesWithTitle = state.opportunities.filter(o => o.title !== null);
+    assert(opportunitiesWithTitle.length === state.opportunities.length, "All opportunities must have titles");
+
+    const opportunitiesWithSource = state.opportunities.filter(o => o.source !== null);
+    assert(opportunitiesWithSource.length === state.opportunities.length, "All opportunities must have sources");
+
+    const opportunitiesWithOwner = state.opportunities.filter(o => o.owner !== null);
+    assert(opportunitiesWithOwner.length === state.opportunities.length, "All opportunities must have owners");
+
+    const opportunitiesWithProducts = state.opportunities.filter(o => o.products.length > 0);
+    assert(opportunitiesWithProducts.length === state.opportunities.length, "All opportunities must have products");
+
+    const opportunitiesWithCreatedAt = state.opportunities.filter(o => o.createdAt !== null);
+    assert(opportunitiesWithCreatedAt.length === state.opportunities.length, "All opportunities must have creation dates");
+
+    const opportunitiesWithClosedDate = state.opportunities.filter(o => o.closedDate === null || o.closedDate !== null);
+    assert(opportunitiesWithClosedDate.length === state.opportunities.length, "All opportunities must have valid closed dates");
+
+    const opportunitiesWithLostReason = state.opportunities.filter(o => o.lostReason === null || typeof o.lostReason === "string");
+    assert(opportunitiesWithLostReason.length === state.opportunities.length, "All opportunities must have valid lost reasons");
+
+    const opportunitiesWithConversionRate = state.opportunities.filter(o => o.conversionRate >= 0 && o.conversionRate <= 1);
+    assert(opportunitiesWithConversionRate.length === state.opportunities.length, "All opportunities must have valid conversion rates");
+
+    const contractsWithTitle = state.contracts.filter(c => c.title !== null);
+    assert(contractsWithTitle.length === state.contracts.length, "All contracts must have titles");
+
+    const contractsWithStartDate = state.contracts.filter(c => c.startDate !== null);
+    assert(contractsWithStartDate.length === state.contracts.length, "All contracts must have start dates");
+
+    const contractsWithEndDate = state.contracts.filter(c => c.endDate !== null);
+    assert(contractsWithEndDate.length === state.contracts.length, "All contracts must have end dates");
+
+    const contractsWithValue = state.contracts.filter(c => c.value > 0);
+    assert(contractsWithValue.length === state.contracts.length, "All contracts must have positive values");
+
+    const contractsWithTerms = state.contracts.filter(c => c.terms !== null);
+    assert(contractsWithTerms.length === state.contracts.length, "All contracts must have terms");
+
+    const contractsWithSignedDate = state.contracts.filter(c => c.signedDate !== null);
+    assert(contractsWithSignedDate.length === state.contracts.length, "All contracts must have signed dates");
+
+    const contractsWithSignedBy = state.contracts.filter(c => c.signedBy !== null);
+    assert(contractsWithSignedBy.length === state.contracts.length, "All contracts must have signed by");
+
+    const contractsWithVersion = state.contracts.filter(c => c.version > 0);
+    assert(contractsWithVersion.length === state.contracts.length, "All contracts must have versions");
+
+    const contractsWithClauses = state.contracts.filter(c => c.clauses.length > 0);
+    assert(contractsWithClauses.length === state.contracts.length, "All contracts must have clauses");
+
+    const contractsWithStatus = state.contracts.filter(c => c.status !== null);
+    assert(contractsWithStatus.length === state.contracts.length, "All contracts must have statuses");
+
+    const usageRecordsWithDate = state.usageRecords.filter(r => r.date !== null);
+    assert(usageRecordsWithDate.length === state.usageRecords.length, "All usage records must have dates");
+
+    const usageRecordsWithComputeHours = state.usageRecords.filter(r => r.computeHours >= 0);
+    assert(usageRecordsWithComputeHours.length === state.usageRecords.length, "All usage records must have valid compute hours");
+
+    const usageRecordsWithBandwidth = state.usageRecords.filter(r => r.bandwidth >= 0);
+    assert(usageRecordsWithBandwidth.length === state.usageRecords.length, "All usage records must have valid bandwidth");
+
+    const usageRecordsWithActiveUsers = state.usageRecords.filter(r => r.activeUsers > 0);
+    assert(usageRecordsWithActiveUsers.length === state.usageRecords.length, "All usage records must have valid active users");
+
+    const usageRecordsWithRequests = state.usageRecords.filter(r => r.requests >= 0);
+    assert(usageRecordsWithRequests.length === state.usageRecords.length, "All usage records must have valid request counts");
+
+    const usageRecordsWithErrors = state.usageRecords.filter(r => r.errors >= 0);
+    assert(usageRecordsWithErrors.length === state.usageRecords.length, "All usage records must have valid error counts");
+
+    const apiRequestsWithEndpoint = state.apiRequests.filter(r => r.endpoint !== null);
+    assert(apiRequestsWithEndpoint.length === state.apiRequests.length, "All API requests must have endpoints");
+
+    const apiRequestsWithMethod = state.apiRequests.filter(r => ["GET", "POST", "PUT", "DELETE"].includes(r.method));
+    assert(apiRequestsWithMethod.length === state.apiRequests.length, "All API requests must have valid methods");
+
+    const apiRequestsWithTimestamp = state.apiRequests.filter(r => r.timestamp !== null);
+    assert(apiRequestsWithTimestamp.length === state.apiRequests.length, "All API requests must have timestamps");
+
+    const apiRequestsWithResponseTime = state.apiRequests.filter(r => r.responseTime > 0);
+    assert(apiRequestsWithResponseTime.length === state.apiRequests.length, "All API requests must have valid response times");
+
+    const apiRequestsWithBytesSent = state.apiRequests.filter(r => r.bytesSent > 0);
+    assert(apiRequestsWithBytesSent.length === state.apiRequests.length, "All API requests must have valid bytes sent");
+
+    const apiRequestsWithBytesReceived = state.apiRequests.filter(r => r.bytesReceived > 0);
+    assert(apiRequestsWithBytesReceived.length === state.apiRequests.length, "All API requests must have valid bytes received");
+
+    const apiRequestsWithRateLimitReset = state.apiRequests.filter(r => r.rateLimitReset !== null);
+    assert(apiRequestsWithRateLimitReset.length === state.apiRequests.length, "All API requests must have rate limit reset times");
+
+    const auditLogsWithTimestamp = state.auditLogs.filter(l => l.timestamp !== null);
+    assert(auditLogsWithTimestamp.length === state.auditLogs.length, "All audit logs must have timestamps");
+
+    const auditLogsWithIpAddress = state.auditLogs.filter(l => l.ipAddress !== null);
+    assert(auditLogsWithIpAddress.length === state.auditLogs.length, "All audit logs must have IP addresses");
+
+    const auditLogsWithUserAgent = state.auditLogs.filter(l => l.userAgent !== null);
+    assert(auditLogsWithUserAgent.length === state.auditLogs.length, "All audit logs must have user agents");
+
+    const auditLogsWithSuccess = state.auditLogs.filter(l => l.success !== null);
+    assert(auditLogsWithSuccess.length === state.auditLogs.length, "All audit logs must have success flags");
+
+    const auditLogsWithResource = state.auditLogs.filter(l => l.resource !== null);
+    assert(auditLogsWithResource.length === state.auditLogs.length, "All audit logs must have resources");
+
+    const auditLogsWithResourceId = state.auditLogs.filter(l => l.resourceId !== null);
+    assert(auditLogsWithResourceId.length === state.auditLogs.length, "All audit logs must have resource IDs");
+
+    const notificationsWithTitle = state.notifications.filter(n => n.title !== null);
+    assert(notificationsWithTitle.length === state.notifications.length, "All notifications must have titles");
+
+    const notificationsWithMessage = state.notifications.filter(n => n.message !== null);
+    assert(notificationsWithMessage.length === state.notifications.length, "All notifications must have messages");
+
+    const notificationsWithStatus = state.notifications.filter(n => ["sent", "failed", "read"].includes(n.status));
+    assert(notificationsWithStatus.length === state.notifications.length, "All notifications must have valid statuses");
+
+    const notificationsWithSentAt = state.notifications.filter(n => n.sentAt !== null);
+    assert(notificationsWithSentAt.length === state.notifications.length, "All notifications must have sent dates");
+
+    const featureFlagsWithKey = Array.from(state.featureFlags.values()).filter(f => f.key !== null);
+    assert(featureFlagsWithKey.length === state.featureFlags.size, "All feature flags must have keys");
+
+    const featureFlagsWithEnabled = Array.from(state.featureFlags.values()).filter(f => f.enabled !== null);
+    assert(featureFlagsWithEnabled.length === state.featureFlags.size, "All feature flags must have enabled flags");
+
+    const featureFlagsWithRollout = Array.from(state.featureFlags.values()).filter(f => f.rollout >= 0 && f.rollout <= 1);
+    assert(featureFlagsWithRollout.length === state.featureFlags.size, "All feature flags must have valid rollout percentages");
+
+    const featureFlagsWithDescription = Array.from(state.featureFlags.values()).filter(f => f.description !== null);
+    assert(featureFlagsWithDescription.length === state.featureFlags.size, "All feature flags must have descriptions");
+
+    const permissionsWithRole = Array.from(state.permissions.keys());
+    assert(permissionsWithRole.length > 0, "Must have permission roles");
+
+    const permissionsWithSet = Array.from(state.permissions.values()).filter(s => s instanceof Set);
+    assert(permissionsWithSet.length === state.permissions.size, "All permissions must be Sets");
+
+    const teamsWithName = state.teams.filter(t => t.name !== null);
+    assert(teamsWithName.length === state.teams.length, "All teams must have names");
+
+    const teamsWithDescription = state.teams.filter(t => t.description !== null);
+    assert(teamsWithDescription.length === state.teams.length, "All teams must have descriptions");
+
+    const teamsWithStatus = state.teams.filter(t => t.status !== null);
+    assert(teamsWithStatus.length === state.teams.length, "All teams must have statuses");
+
+    const teamsWithCreatedAt = state.teams.filter(t => t.createdAt !== null);
+    assert(teamsWithCreatedAt.length === state.teams.length, "All teams must have creation dates");
+
+    const teamsWithLead = state.teams.filter(t => t.lead !== null);
+    assert(teamsWithLead.length === state.teams.length, "All teams must have leads");
+
+    const teamsWithTeamId = state.teams.filter(t => t.teamId !== null);
+    assert(teamsWithTeamId.length === state.teams.length, "All teams must have team IDs");
+
+    const projectsWithName = state.projects.filter(p => p.name !== null);
+    assert(projectsWithName.length === state.projects.length, "All projects must have names");
+
+    const projectsWithType = state.projects.filter(p => p.type !== null);
+    assert(projectsWithType.length === state.projects.length, "All projects must have types");
+
+    const projectsWithStatus = state.projects.filter(p => p.status !== null);
+    assert(projectsWithStatus.length === state.projects.length, "All projects must have statuses");
+
+    const projectsWithStartDate = state.projects.filter(p => p.startDate !== null);
+    assert(projectsWithStartDate.length === state.projects.length, "All projects must have start dates");
+
+    const projectsWithBudget = state.projects.filter(p => p.budget > 0);
+    assert(projectsWithBudget.length === state.projects.length, "All projects must have budgets");
+
+    const projectsWithSpent = state.projects.filter(p => p.spent >= 0);
+    assert(projectsWithSpent.length === state.projects.length, "All projects must have valid spent amounts");
+
+    const projectsWithProgress = state.projects.filter(p => p.progress >= 0 && p.progress <= 100);
+    assert(projectsWithProgress.length === state.projects.length, "All projects must have valid progress");
+
+    const projectsWithManager = state.projects.filter(p => p.manager !== null);
+    assert(projectsWithManager.length === state.projects.length, "All projects must have managers");
+
+    const projectsWithTeamId = state.projects.filter(p => p.teamId !== null);
+    assert(projectsWithTeamId.length === state.projects.length, "All projects must have team IDs");
+
+    const tasksWithTitle = state.tasks.filter(t => t.title !== null);
+    assert(tasksWithTitle.length === state.tasks.length, "All tasks must have titles");
+
+    const tasksWithType = state.tasks.filter(t => t.type !== null);
+    assert(tasksWithType.length === state.tasks.length, "All tasks must have types");
+
+    const tasksWithStatus = state.tasks.filter(t => ["todo", "in_progress", "in_review", "done", "blocked"].includes(t.status));
+    assert(tasksWithStatus.length === state.tasks.length, "All tasks must have valid statuses");
+
+    const tasksWithPriority = state.tasks.filter(t => ["low", "medium", "high", "critical"].includes(t.priority));
+    assert(tasksWithPriority.length === state.tasks.length, "All tasks must have valid priorities");
+
+    const tasksWithReporter = state.tasks.filter(t => t.reporter !== null);
+    assert(tasksWithReporter.length === state.tasks.length, "All tasks must have reporters");
+
+    const tasksWithCreatedAt = state.tasks.filter(t => t.createdAt !== null);
+    assert(tasksWithCreatedAt.length === state.tasks.length, "All tasks must have creation dates");
+
+    const tasksWithDueDate = state.tasks.filter(t => t.dueDate !== null);
+    assert(tasksWithDueDate.length === state.tasks.length, "All tasks must have due dates");
+
+    const tasksWithEstimatedHours = state.tasks.filter(t => t.estimatedHours > 0);
+    assert(tasksWithEstimatedHours.length === state.tasks.length, "All tasks must have valid estimated hours");
+
+    const tasksWithActualHours = state.tasks.filter(t => t.actualHours === null || t.actualHours > 0);
+    assert(tasksWithActualHours.length === state.tasks.length, "All tasks must have valid actual hours");
+
+    const tasksWithTags = state.tasks.filter(t => t.tags.length > 0);
+    assert(tasksWithTags.length === state.tasks.length, "All tasks must have tags");
+
+    const tasksWithDescription = state.tasks.filter(t => t.description !== null);
+    assert(tasksWithDescription.length === state.tasks.length, "All tasks must have descriptions");
+
+    const tasksWithProjectId = state.tasks.filter(t => t.projectId !== null);
+    assert(tasksWithProjectId.length === state.tasks.length, "All tasks must have project IDs");
+
+    const tasksWithCustomerId = state.tasks.filter(t => t.customerId !== null);
+    assert(tasksWithCustomerId.length === state.tasks.length, "All tasks must have customer IDs");
+
+    const tasksWithAccountId = state.tasks.filter(t => t.accountId !== null);
+    assert(tasksWithAccountId.length === state.tasks.length, "All tasks must have account IDs");
+
+    const tasksWithDependencies = state.tasks.filter(t => Array.isArray(t.dependencies));
+    assert(tasksWithDependencies.length === state.tasks.length, "All tasks must have dependencies arrays");
+
+    const tasksWithCompletedAt = state.tasks.filter(t => t.completedAt === null || t.completedAt !== null);
+    assert(tasksWithCompletedAt.length === state.tasks.length, "All tasks must have valid completed dates");
+
+    const tasksWithAssignee = state.tasks.filter(t => t.assignee !== null);
+    assert(tasksWithAssignee.length === state.tasks.length, "All tasks must have assignees");
+
+    const tasksWithId = state.tasks.filter(t => t.id !== null);
+    assert(tasksWithId.length === state.tasks.length, "All tasks must have IDs");
+
+    const tasksWithProjectIdValid = state.tasks.filter(t => state.projects.some(p => p.id === t.projectId));
+    assert(tasksWithProjectIdValid.length === state.tasks.length, "All tasks must reference valid projects");
+
+    const tasksWithAssigneeValid = state.tasks.filter(t => state.users.some(u => u.id === t.assignee));
+    assert(tasksWithAssigneeValid.length === state.tasks.length, "All tasks must reference valid assignees");
+
+    const tasksWithReporterValid = state.tasks.filter(t => state.users.some(u => u.id === t.reporter));
+    assert(tasksWithReporterValid.length === state.tasks.length, "All tasks must reference valid reporters");
+
+    const tasksWithTeamIdValid = state.teams.filter(t => state.teams.some(tm => tm.id === t.teamId));
+    assert(tasksWithTeamIdValid.length === state.tasks.length, "All tasks must reference valid teams");
+
+    const tasksWithCustomerIdValid = state.tasks.filter(t => state.customers.some(c => c.id === t.customerId));
+    assert(tasksWithCustomerIdValid.length === state.tasks.length, "All tasks must reference valid customers");
+
+    const tasksWithAccountIdValid = state.tasks.filter(t => state.accounts.some(a => a.id === t.accountId));
+    assert(tasksWithAccountIdValid.length === state.tasks.length, "All tasks must reference valid accounts");
+
+    const ticketsWithCustomerIdValid = state.supportTickets.filter(t => state.customers.some(c => c.id === t.customerId));
+    assert(ticketsWithCustomerIdValid.length === state.supportTickets.length, "All tickets must reference valid customers");
+
+    const ticketsWithAccountIdValid = state.supportTickets.filter(t => state.accounts.some(a => a.id === t.accountId));
+    assert(ticketsWithAccountIdValid.length === state.supportTickets.length, "All tickets must reference valid accounts");
+
+    const ticketsWithSubscriptionIdValid = state.supportTickets.filter(t => state.subscriptions.some(s => s.id === t.subscriptionId));
+    assert(ticketsWithSubscriptionIdValid.length === state.supportTickets.length, "All tickets must reference valid subscriptions");
+
+    const ticketsWithAssignedToValid = state.supportTickets.filter(t => t.assignedTo === null || state.users.some(u => u.id === t.assignedTo));
+    assert(ticketsWithAssignedToValid.length === state.supportTickets.length, "All tickets must reference valid assignees");
+
+    const opportunitiesWithCustomerIdValid = state.opportunities.filter(o => state.customers.some(c => c.id === o.customerId));
+    assert(opportunitiesWithCustomerIdValid.length === state.opportunities.length, "All opportunities must reference valid customers");
+
+    const opportunitiesWithAccountIdValid = state.opportunities.filter(o => o.accountId === null || state.accounts.some(a => a.id === o.accountId));
+    assert(opportunitiesWithAccountIdValid.length === state.opportunities.length, "All opportunities must reference valid accounts");
+
+    const opportunitiesWithOwnerValid = state.opportunities.filter(o => state.users.some(u => u.id === o.owner));
+    assert(opportunitiesWithOwnerValid.length === state.opportunities.length, "All opportunities must reference valid owners");
+
+    const opportunitiesWithProductsValid = state.opportunities.filter(o => o.products.every(p => state.products.some(prod => prod.id === p)));
+    assert(opportunitiesWithProductsValid.length === state.opportunities.length, "All opportunities must reference valid products");
+
+    const contractsWithCustomerIdValid = state.contracts.filter(c => state.customers.some(cu => cu.id === c.customerId));
+    assert(contractsWithCustomerIdValid.length === state.contracts.length, "All contracts must reference valid customers");
+
+    const contractsWithSubscriptionIdValid = state.contracts.filter(c => state.subscriptions.some(s => s.id === c.subscriptionId));
+    assert(contractsWithSubscriptionIdValid.length === state.contracts.length, "All contracts must reference valid subscriptions");
+
+    const contractsWithAccountIdValid = state.contracts.filter(c => state.accounts.some(a => a.id === c.accountId));
+    assert(contractsWithAccountIdValid.length === state.contracts.length, "All contracts must reference valid accounts");
+
+    const contractsWithSignedByValid = state.contracts.filter(c => typeof c.signedBy === "string");
+    assert(contractsWithSignedByValid.length === state.contracts.length, "All contracts must have valid signed by values");
+
+    const contractsWithClausesValid = state.contracts.filter(c => c.clauses.every(cl => ["confidentiality", "data_protection", "service_level", "termination", "liability"].includes(cl)));
+    assert(contractsWithClausesValid.length === state.contracts.length, "All contracts must have valid clauses");
+
+    const contractsWithVersionValid = state.contracts.filter(c => c.version > 0 && c.version <= 10);
+    assert(contractsWithVersionValid.length === state.contracts.length, "All contracts must have valid versions");
+
+    const contractsWithStartDateValid = state.contracts.filter(c => c.startDate <= c.endDate);
+    assert(contractsWithStartDateValid.length === state.contracts.length, "All contracts must have start date <= end date");
+
+    const contractsWithTermsValid = state.contracts.filter(c => ["net_30", "net_45", "net_60"].includes(c.terms));
+    assert(contractsWithTermsValid.length === state.contracts.length, "All contracts must have valid terms");
+
+    const contractsWithAutoRenewValid = state.contracts.filter(c => typeof c.autoRenew === "boolean");
+    assert(contractsWithAutoRenewValid.length === state.contracts.length, "All contracts must have valid autoRenew values");
+
+    const contractsWithRenewalNoticeValid = state.contracts.filter(c => c.renewalNoticeDays > 0);
+    assert(contractsWithRenewalNoticeValid.length === state.contracts.length, "All contracts must have valid renewal notice days");
+
+    const contractsWithValueValid = state.contracts.filter(c => c.value > 0);
+    assert(contractsWithValueValid.length === state.contracts.length, "All contracts must have valid values");
+
+    const contractsWithStatusValid = state.contracts.filter(c => ["active", "expired", "terminated"].includes(c.status));
+    assert(contractsWithStatusValid.length === state.contracts.length, "All contracts must have valid statuses");
+
+    const usageRecordsWithCustomerIdValid = state.usageRecords.filter(r => state.customers.some(c => c.id === r.customerId));
+    assert(usageRecordsWithCustomerIdValid.length === state.usageRecords.length, "All usage records must reference valid customers");
+
+    const usageRecordsWithSubscriptionIdValid = state.usageRecords.filter(r => state.subscriptions.some(s => s.id === r.subscriptionId));
+    assert(usageRecordsWithSubscriptionIdValid.length === state.usageRecords.length, "All usage records must reference valid subscriptions");
+
+    const usageRecordsWithAccountIdValid = state.usageRecords.filter(r => state.accounts.some(a => a.id === r.accountId));
+    assert(usageRecordsWithAccountIdValid.length === state.usageRecords.length, "All usage records must reference valid accounts");
+
+    const usageRecordsWithDateValid = state.usageRecords.filter(r => r.date >= state.subscriptions.find(s => s.id === r.subscriptionId)?.startDate);
+    assert(usageRecordsWithDateValid.length === state.usageRecords.length, "All usage records must have valid dates");
+
+    const usageRecordsWithApiCallsValid = state.usageRecords.filter(r => r.apiCalls <= state.pricingPlans.find(p => p.id === state.subscriptions.find(s => s.id === r.subscriptionId)?.planId)?.apiLimit);
+    assert(usageRecordsWithApiCallsValid.length === state.usageRecords.length, "All usage records must have valid API call counts");
+
+    const usageRecordsWithStorageValid = state.usageRecords.filter(r => r.storageUsed <= 1000);
+    assert(usageRecordsWithStorageValid.length === state.usageRecords.length, "All usage records must have valid storage values");
+
+    const usageRecordsWithComputeHoursValid = state.usageRecords.filter(r => r.computeHours <= 500);
+    assert(usageRecordsWithComputeHoursValid.length === state.usageRecords.length, "All usage records must have valid compute hours");
+
+    const usageRecordsWithBandwidthValid = state.usageRecords.filter(r => r.bandwidth <= 100);
+    assert(usageRecordsWithBandwidthValid.length === state.usageRecords.length, "All usage records must have valid bandwidth");
+
+    const usageRecordsWithActiveUsersValid = state.usageRecords.filter(r => r.activeUsers <= state.pricingPlans.find(p => p.id === state.subscriptions.find(s => s.id === r.subscriptionId)?.planId)?.maxUsers || state.pricingPlans.find(p => p.id === state.subscriptions.find(s => s.id === r.subscriptionId)?.planId)?.maxUsers === -1);
+    assert(usageRecordsWithActiveUsersValid.length === state.usageRecords.length, "All usage records must have valid active users");
+
+    const usageRecordsWithRequestsValid = state.usageRecords.filter(r => r.requests <= state.pricingPlans.find(p => p.id === state.subscriptions.find(s => s.id === r.subscriptionId)?.planId)?.apiLimit);
+    assert(usageRecordsWithRequestsValid.length === state.usageRecords.length, "All usage records must have valid request counts");
+
+    const usageRecordsWithErrorsValid = state.usageRecords.filter(r => r.errors <= Math.floor(state.pricingPlans.find(p => p.id === state.subscriptions.find(s => s.id === r.subscriptionId)?.planId)?.apiLimit * 0.01));
+    assert(usageRecordsWithErrorsValid.length === state.usageRecords.length, "All usage records must have valid error counts");
+
+    const apiRequestsWithCustomerIdValid = state.apiRequests.filter(r => state.customers.some(c => c.id === r.customerId));
+    assert(apiRequestsWithCustomerIdValid.length === state.apiRequests.length, "All API requests must reference valid customers");
+
+    const apiRequestsWithSubscriptionIdValid = state.apiRequests.filter(r => state.subscriptions.some(s => s.id === r.subscriptionId));
+    assert(apiRequestsWithSubscriptionIdValid.length === state.apiRequests.length, "All API requests must reference valid subscriptions");
+
+    const apiRequestsWithAccountIdValid = state.apiRequests.filter(r => state.accounts.some(a => a.id === r.accountId));
+    assert(apiRequestsWithAccountIdValid.length === state.apiRequests.length, "All API requests must reference valid accounts");
+
+    const apiRequestsWithUserIdValid = state.apiRequests.filter(r => r.userId === null || state.users.some(u => u.id === r.userId));
+    assert(apiRequestsWithUserIdValid.length === state.apiRequests.length, "All API requests must reference valid users");
+
+    const apiRequestsWithEndpointValid = state.apiRequests.filter(r => ["/api/v1/analytics", "/api/v1/data", "/api/v1/users", "/api/v1/reports", "/api/v1/integrations"].includes(r.endpoint));
+    assert(apiRequestsWithEndpointValid.length === state.apiRequests.length, "All API requests must have valid endpoints");
+
+    const apiRequestsWithRateLimitRemainingValid = state.apiRequests.filter(r => r.rateLimitRemaining >= 0);
+    assert(apiRequestsWithRateLimitRemainingValid.length === state.apiRequests.length, "All API requests must have valid rate limit remaining");
+
+    const apiRequestsWithRateLimitResetValid = state.apiRequests.filter(r => r.rateLimitReset >= r.timestamp);
+    assert(apiRequestsWithRateLimitResetValid.length === state.apiRequests.length, "All API requests must have valid rate limit reset times");
+
+    const apiRequestsWithResponseTimeValid = state.apiRequests.filter(r => r.responseTime > 0 && r.responseTime < 10000);
+    assert(apiRequestsWithResponseTimeValid.length === state.apiRequests.length, "All API requests must have valid response times");
+
+    const apiRequestsWithBytesSentValid = state.apiRequests.filter(r => r.bytesSent > 0 && r.bytesSent < 100000);
+    assert(apiRequestsWithBytesSentValid.length === state.apiRequests.length, "All API requests must have valid bytes sent");
+
+    const apiRequestsWithBytesReceivedValid = state.apiRequests.filter(r => r.bytesReceived > 0 && r.bytesReceived < 1000000);
+    assert(apiRequestsWithBytesReceivedValid.length === state.apiRequests.length, "All API requests must have valid bytes received");
+
+    const auditLogsWithCustomerIdValid = state.auditLogs.filter(l => state.customers.some(c => c.id === l.customerId));
+    assert(auditLogsWithCustomerIdValid.length === state.auditLogs.length, "All audit logs must reference valid customers");
+
+    const auditLogsWithAccountIdValid = state.auditLogs.filter(l => state.accounts.some(a => a.id === l.accountId));
+    assert(auditLogsWithAccountIdValid.length === state.auditLogs.length, "All audit logs must reference valid accounts");
+
+    const auditLogsWithUserIdValid = state.auditLogs.filter(l => l.userId === null || state.users.some(u => u.id === l.userId));
+    assert(auditLogsWithUserIdValid.length === state.auditLogs.length, "All audit logs must reference valid users");
+
+    const auditLogsWithActionValid = state.auditLogs.filter(l => ["create", "update", "delete", "login", "logout", "export", "import", "upgrade", "downgrade", "cancel"].includes(l.action));
+    assert(auditLogsWithActionValid.length === state.auditLogs.length, "All audit logs must have valid actions");
+
+    const auditLogsWithResourceValid = state.auditLogs.filter(l => ["customer", "subscription", "invoice", "user", "project", "task", "ticket"].includes(l.resource));
+    assert(auditLogsWithResourceValid.length === state.auditLogs.length, "All audit logs must have valid resources");
+
+    const auditLogsWithIpAddressValid = state.auditLogs.filter(l => {
+      const parts = l.ipAddress.split(".");
+      return parts.length === 4 && parts.every(p => parseInt(p) >= 0 && parseInt(p) <= 255);
+    });
+    assert(auditLogsWithIpAddressValid.length === state.auditLogs.length, "All audit logs must have valid IP addresses");
+
+    const auditLogsWithUserAgentValid = state.auditLogs.filter(l => ["Mozilla/5.0", "Chrome/120.0", "Safari/17.0", "curl/8.0"].includes(l.userAgent));
+    assert(auditLogsWithUserAgentValid.length === state.auditLogs.length, "All audit logs must have valid user agents");
+
+    const auditLogsWithChangesValid = state.auditLogs.filter(l => l.changes === null || (l.changes.before && l.changes.after));
+    assert(auditLogsWithChangesValid.length === state.auditLogs.length, "All audit logs must have valid changes");
+
+    const notificationsWithCustomerIdValid = state.notifications.filter(n => state.customers.some(c => c.id === n.customerId));
+    assert(notificationsWithCustomerIdValid.length === state.notifications.length, "All notifications must reference valid customers");
+
+    const notificationsWithAccountIdValid = state.notifications.filter(n => state.accounts.some(a => a.id === n.accountId));
+    assert(notificationsWithAccountIdValid.length === state.notifications.length, "All notifications must reference valid accounts");
+
+    const notificationsWithChannelValid = state.notifications.filter(n => ["email", "sms", "in_app", "webhook"].includes(n.channel));
+    assert(notificationsWithChannelValid.length === state.notifications.length, "All notifications must have valid channels");
+
+    const notificationsWithStatusValid = state.notifications.filter(n => ["sent", "failed", "read"].includes(n.status));
+    assert(notificationsWithStatusValid.length === state.notifications.length, "All notifications must have valid statuses");
+
+    const notificationsWithSentAtValid = state.notifications.filter(n => n.sentAt !== null);
+    assert(notificationsWithSentAtValid.length === state.notifications.length, "All notifications must have valid sent dates");
+
+    const notificationsWithReadAtValid = state.notifications.filter(n => n.readAt === null || n.readAt >= n.sentAt);
+    assert(notificationsWithReadAtValid.length === state.notifications.length, "All notifications must have valid read dates");
+
+    const notificationsWithMessageValid = state.notifications.filter(n => n.message.length > 0);
+    assert(notificationsWithMessageValid.length === state.notifications.length, "All notifications must have valid messages");
+
+    const notificationsWithTitleValid = state.notifications.filter(n => n.title.length > 0);
+    assert(notificationsWithTitleValid.length === state.notifications.length, "All notifications must have valid titles");
+
+    const notificationsWithTypeValid = state.notifications.filter(n => ["invoice_due", "payment_failed", "subscription_renewal", "ticket_assigned", "opportunity_updated", "usage_warning", "security_alert", "feature_update"].includes(n.type));
+    assert(notificationsWithTypeValid.length === state.notifications.length, "All notifications must have valid types");
+
+    const featureFlagsWithKeyValid = Array.from(state.featureFlags.values()).filter(f => f.key.length > 0);
+    assert(featureFlagsWithKeyValid.length === state.featureFlags.size, "All feature flags must have valid keys");
+
+    const featureFlagsWithDescriptionValid = Array.from(state.featureFlags.values()).filter(f => f.description.length > 0);
+    assert(featureFlagsWithDescriptionValid.length === state.featureFlags.size, "All feature flags must have valid descriptions");
+
+    const featureFlagsWithEnabledValid = Array.from(state.featureFlags.values()).filter(f => typeof f.enabled === "boolean");
+    assert(featureFlagsWithEnabledValid.length === state.featureFlags.size, "All feature flags must have valid enabled flags");
+
+    const featureFlagsWithRolloutValid = Array.from(state.featureFlags.values()).filter(f => f.rollout >= 0 && f.rollout <= 1);
+    assert(featureFlagsWithRolloutValid.length === state.featureFlags.size, "All feature flags must have valid rollout percentages");
+
+    const permissionsWithRoleValid = Array.from(state.permissions.keys());
+    assert(permissionsWithRoleValid.length > 0, "Must have valid permission roles");
+
+    const permissionsWithSetValid = Array.from(state.permissions.values()).filter(s => s instanceof Set && s.size > 0);
+    assert(permissionsWithSetValid.length === state.permissions.size, "All permissions must be non-empty Sets");
+
+    const permissionsWithPermissionValid = Array.from(state.permissions.values()).flatMap(s => Array.from(s));
+    assert(permissionsWithPermissionValid.length > 0, "Must have valid permissions");
+
+    const permissionsWithAllPermissionsValid = permissionsWithPermissionValid.every(p => ["read", "write", "delete", "manage_users", "manage_billing", "manage_integrations", "view_reports", "export_data", "api_access", "admin_access"].includes(p));
+    assert(permissionsWithAllPermissionsValid, "All permissions must be valid");
+
+    const teamsWithCustomerIdValid = state.teams.filter(t => state.customers.some(c => c.id === t.customerId));
+    assert(teamsWithCustomerIdValid.length === state.teams.length, "All teams must reference valid customers");
+
+    const teamsWithAccountIdValid = state.teams.filter(t => state.accounts.some(a => a.id === t.accountId));
+    assert(teamsWithAccountIdValid.length === state.teams.length, "All teams must reference valid accounts");
+
+    const teamsWithNameValid = state.teams.filter(t => t.name.length > 0);
+    assert(teamsWithNameValid.length === state.teams.length, "All teams must have valid names");
+
+    const teamsWithDescriptionValid = state.teams.filter(t => t.description.length > 0);
+    assert(teamsWithDescriptionValid.length === state.teams.length, "All teams must have valid descriptions");
+
+    const teamsWithStatusValid = state.teams.filter(t => t.status === "active");
+    assert(teamsWithStatusValid.length === state.teams.length, "All teams must be active");
+
+    const teamsWithCreatedAtValid = state.teams.filter(t => t.createdAt !== null);
+    assert(teamsWithCreatedAtValid.length === state.teams.length, "All teams must have valid creation dates");
+
+    const teamsWithLeadValid = state.teams.filter(t => t.lead !== null && state.users.some(u => u.id === t.lead));
+    assert(teamsWithLeadValid.length === state.teams.length, "All teams must have valid leads");
+
+    const teamsWithMembersValid = state.teams.filter(t => t.members.every(m => state.users.some(u => u.id === m)));
+    assert(teamsWithMembersValid.length === state.teams.length, "All teams must have valid members");
+
+    const teamsWithTeamIdValid = state.teams.filter(t => t.teamId !== null && state.teams.some(tm => tm.id === t.teamId));
+    assert(teamsWithTeamIdValid.length === state.teams.length, "All teams must have valid team IDs");
+
+    const projectsWithCustomerIdValid = state.projects.filter(p => state.customers.some(c => c.id === p.customerId));
+    assert(projectsWithCustomerIdValid.length === state.projects.length, "All projects must reference valid customers");
+
+    const projectsWithAccountIdValid = state.projects.filter(p => state.accounts.some(a => a.id === p.accountId));
+    assert(projectsWithAccountIdValid.length === state.projects.length, "All projects must reference valid accounts");
+
+    const projectsWithNameValid = state.projects.filter(p => p.name.length > 0);
+    assert(projectsWithNameValid.length === state.projects.length, "All projects must have valid names");
+
+    const projectsWithTypeValid = state.projects.filter(p => ["implementation", "migration", "integration", "customization", "training", "support"].includes(p.type));
+    assert(projectsWithTypeValid.length === state.projects.length, "All projects must have valid types");
+
+    const projectsWithStatusValid = state.projects.filter(p => ["planning", "in_progress", "completed", "on_hold", "cancelled"].includes(p.status));
+    assert(projectsWithStatusValid.length === state.projects.length, "All projects must have valid statuses");
+
+    const projectsWithStartDateValid = state.projects.filter(p => p.startDate !== null);
+    assert(projectsWithStartDateValid.length === state.projects.length, "All projects must have valid start dates");
+
+    const projectsWithBudgetValid = state.projects.filter(p => p.budget > 0);
+    assert(projectsWithBudgetValid.length === state.projects.length, "All projects must have valid budgets");
+
+    const projectsWithSpentValid = state.projects.filter(p => p.spent >= 0 && p.spent <= p.budget);
+    assert(projectsWithSpentValid.length === state.projects.length, "All projects must have valid spent amounts");
+
+    const projectsWithProgressValid = state.projects.filter(p => p.progress >= 0 && p.progress <= 100);
+    assert(projectsWithProgressValid.length === state.projects.length, "All projects must have valid progress");
+
+    const projectsWithManagerValid = state.projects.filter(p => p.manager !== null && state.users.some(u => u.id === p.manager));
+    assert(projectsWithManagerValid.length === state.projects.length, "All projects must have valid managers");
+
+    const projectsWithTeamIdValid = state.projects.filter(p => p.teamId !== null && state.teams.some(t => t.id === p.teamId));
+    assert(projectsWithTeamIdValid.length === state.projects.length, "All projects must have valid team IDs");
+
+    const projectsWithEndDateValid = state.projects.filter(p => p.endDate === null || p.endDate >= p.startDate);
+    assert(projectsWithEndDateValid.length === state.projects.length, "All projects must have valid end dates");
+
+    const tasksWithCustomerIdValid = state.tasks.filter(t => state.customers.some(c => c.id === t.customerId));
+    assert(tasksWithCustomerIdValid.length === state.tasks.length, "All tasks must reference valid customers");
+
+    const tasksWithAccountIdValid = state.tasks.filter(t => state.accounts.some(a => a.id === t.accountId));
+    assert(tasksWithAccountIdValid.length === state.tasks.length, "All tasks must reference valid accounts");
+
+    const tasksWithTitleValid = state.tasks.filter(t => t.title.length > 0);
+    assert(tasksWithTitleValid.length === state.tasks.length, "All tasks must have valid titles");
+
+    const tasksWithTypeValid = state.tasks.filter(t => ["feature", "bug", "task", "epic", "story"].includes(t.type));
+    assert(tasksWithTypeValid.length === state.tasks.length, "All tasks must have valid types");
+
+    const tasksWithStatusValid = state.tasks.filter(t => ["todo", "in_progress", "in_review", "done", "blocked"].includes(t.status));
+    assert(tasksWithStatusValid.length === state.tasks.length, "All tasks must have valid statuses");
+
+    const tasksWithPriorityValid = state.tasks.filter(t => ["low", "medium", "high", "critical"].includes(t.priority));
+    assert(tasksWithPriorityValid.length === state.tasks.length, "All tasks must have valid priorities");
+
+    const tasksWithAssigneeValid = state.tasks.filter(t => t.assignee !== null && state.users.some(u => u.id === t.assignee));
+    assert(tasksWithAssigneeValid.length === state.tasks.length, "All tasks must have valid assignees");
+
+    const tasksWithReporterValid = state.tasks.filter(t => t.reporter !== null && state.users.some(u => u.id === t.reporter));
+    assert(tasksWithReporterValid.length === state.tasks.length, "All tasks must have valid reporters");
+
+    const tasksWithCreatedAtValid = state.tasks.filter(t => t.createdAt !== null);
+    assert(tasksWithCreatedAtValid.length === state.tasks.length, "All tasks must have valid creation dates");
+
+    const tasksWithDueDateValid = state.tasks.filter(t => t.dueDate !== null);
+    assert(tasksWithDueDateValid.length === state.tasks.length, "All tasks must have valid due dates");
+
+    const tasksWithEstimatedHoursValid = state.tasks.filter(t => t.estimatedHours > 0 && t.estimatedHours <= 40);
+    assert(tasksWithEstimatedHoursValid.length === state.tasks.length, "All tasks must have valid estimated hours");
+
+    const tasksWithActualHoursValid = state.tasks.filter(t => t.actualHours === null || (t.actualHours > 0 && t.actualHours <= 40));
+    assert(tasksWithActualHoursValid.length === state.tasks.length, "All tasks must have valid actual hours");
+
+    const tasksWithDependenciesValid = state.tasks.filter(t => Array.isArray(t.dependencies));
+    assert(tasksWithDependenciesValid.length === state.tasks.length, "All tasks must have valid dependencies");
+
+    const tasksWithTagsValid = state.tasks.filter(t => t.tags.every(tag => ["frontend", "backend", "database", "api", "ui", "security"].includes(tag)));
+    assert(tasksWithTagsValid.length === state.tasks.length, "All tasks must have valid tags");
+
+    const tasksWithDescriptionValid = state.tasks.filter(t => t.description.length > 0);
+    assert(tasksWithDescriptionValid.length === state.tasks.length, "All tasks must have valid descriptions");
+
+    const tasksWithCompletedAtValid = state.tasks.filter(t => t.completedAt === null || t.completedAt >= t.createdAt);
+    assert(tasksWithCompletedAtValid.length === state.tasks.length, "All tasks must have valid completed dates");
+
+    const tasksWithProjectIdValid = state.tasks.filter(t => state.projects.some(p => p.id === t.projectId));
+    assert(tasksWithProjectIdValid.length === state.tasks.length, "All tasks must reference valid projects");
+
+    const tasksWithIdValid = state.tasks.filter(t => t.id !== null);
+    assert(tasksWithIdValid.length === state.tasks.length, "All tasks must have valid IDs");
+
+    const ticketsWithCustomerIdValid = state.supportTickets.filter(t => state.customers.some(c => c.id === t.customerId));
+    assert(ticketsWithCustomerIdValid.length === state.supportTickets.length, "All tickets must reference valid customers");
+
+    const ticketsWithAccountIdValid = state.supportTickets.filter(t => state.accounts.some(a => a.id === t.accountId));
+    assert(ticketsWithAccountIdValid.length === state.supportTickets.length, "All tickets must reference valid accounts");
+
+    const ticketsWithSubscriptionIdValid = state.supportTickets.filter(t => state.subscriptions.some(s => s.id === t.subscriptionId));
+    assert(ticketsWithSubscriptionIdValid.length === state.supportTickets.length, "All tickets must reference valid subscriptions");
+
+    const ticketsWithTitleValid = state.supportTickets.filter(t => t.title.length > 0);
+    assert(ticketsWithTitleValid.length === state.supportTickets.length, "All tickets must have valid titles");
+
+    const ticketsWithDescriptionValid = state.supportTickets.filter(t => t.description.length > 0);
+    assert(ticketsWithDescriptionValid.length === state.supportTickets.length, "All tickets must have valid descriptions");
+
+    const ticketsWithCategoryValid = state.supportTickets.filter(t => ["billing", "technical", "feature_request", "account", "security", "integration", "performance"].includes(t.category));
+    assert(ticketsWithCategoryValid.length === state.supportTickets.length, "All tickets must have valid categories");
+
+    const ticketsWithPriorityValid = state.supportTickets.filter(t => ["low", "medium", "high", "critical"].includes(t.priority));
+    assert(ticketsWithPriorityValid.length === state.supportTickets.length, "All tickets must have valid priorities");
+
+    const ticketsWithStatusValid = state.supportTickets.filter(t => ["open", "in_progress", "pending", "resolved", "closed"].includes(t.status));
+    assert(ticketsWithStatusValid.length === state.supportTickets.length, "All tickets must have valid statuses");
+
+    const ticketsWithCreatedAtValid = state.supportTickets.filter(t => t.createdAt !== null);
+    assert(ticketsWithCreatedAtValid.length === state.supportTickets.length, "All tickets must have valid creation dates");
+
+    const ticketsWithSlaDeadlineValid = state.supportTickets.filter(t => t.slaDeadline !== null);
+    assert(ticketsWithSlaDeadlineValid.length === state.supportTickets.length, "All tickets must have valid SLA deadlines");
+
+    const ticketsWithSlaMetValid = state.supportTickets.filter(t => t.slaMet === null || typeof t.slaMet === "boolean");
+    assert(ticketsWithSlaMetValid.length === state.supportTickets.length, "All tickets must have valid SLA met values");
+
+    const ticketsWithAssignedToValid = state.supportTickets.filter(t => t.assignedTo === null || state.users.some(u => u.id === t.assignedTo));
+    assert(ticketsWithAssignedToValid.length === state.supportTickets.length, "All tickets must have valid assignedTo values");
+
+    const ticketsWithTagsValid = state.supportTickets.filter(t => t.tags.every(tag => ["urgent", "bug", "enhancement", "question"].includes(tag)));
+    assert(ticketsWithTagsValid.length === state.supportTickets.length, "All tickets must have valid tags");
+
+    const ticketsWithCommentsValid = state.supportTickets.filter(t => t.comments >= 0);
+    assert(ticketsWithCommentsValid.length === state.supportTickets.length, "All tickets must have valid comment counts");
+
+    const ticketsWithResolutionTimeValid = state.supportTickets.filter(t => t.resolutionTime === null || t.resolutionTime >= 0);
+    assert(ticketsWithResolutionTimeValid.length === state.supportTickets.length, "All tickets must have valid resolution times");
+
+    const ticketsWithEscalationCountValid = state.supportTickets.filter(t => t.escalationCount >= 0);
+    assert(ticketsWithEscalationCountValid.length === state.supportTickets.length, "All tickets must have valid escalation counts");
+
+    const ticketsWithIsEscalatedValid = state.supportTickets.filter(t => typeof t.isEscalated === "boolean");
+    assert(ticketsWithIsEscalatedValid.length === state.supportTickets.length, "All tickets must have valid isEscalated values");
+
+    const ticketsWithCustomerSatisfactionValid = state.supportTickets.filter(t => t.customerSatisfaction === null || (t.customerSatisfaction >= 1 && t.customerSatisfaction <= 5));
+    assert(ticketsWithCustomerSatisfactionValid.length === state.supportTickets.length, "All tickets must have valid satisfaction scores");
+
+    const ticketsWithIdValid = state.supportTickets.filter(t => t.id !== null);
+    assert(ticketsWithIdValid.length === state.supportTickets.length, "All tickets must have valid IDs");
+
+    const opportunitiesWithTitleValid = state.opportunities.filter(o => o.title.length > 0);
+    assert(opportunitiesWithTitleValid.length === state.opportunities.length, "All opportunities must have valid titles");
+
+    const opportunitiesWithStageValid = state.opportunities.filter(o => ["lead", "qualified", "proposal", "negotiation", "closed_won", "closed_lost"].includes(o.stage));
+    assert(opportunitiesWithStageValid.length === state.opportunities.length, "All opportunities must have valid stages");
+
+    const opportunitiesWithSourceValid = state.opportunities.filter(o => ["inbound", "outbound", "referral", "partner", "event", "website"].includes(o.source));
+    assert(opportunitiesWithSourceValid.length === state.opportunities.length, "All opportunities must have valid sources");
+
+    const opportunitiesWithEstimatedValueValid = state.opportunities.filter(o => o.estimatedValue > 0);
+    assert(opportunitiesWithEstimatedValueValid.length === state.opportunities.length, "All opportunities must have valid estimated values");
+
+    const opportunitiesWithActualValueValid = state.opportunities.filter(o => o.actualValue === null || (o.actualValue >= 0));
+    assert(opportunitiesWithActualValueValid.length === state.opportunities.length, "All opportunities must have valid actual values");
+
+    const opportunitiesWithProbabilityValid = state.opportunities.filter(o => o.probability >= 0 && o.probability <= 1);
+    assert(opportunitiesWithProbabilityValid.length === state.opportunities.length, "All opportunities must have valid probabilities");
+
+    const opportunitiesWithCreatedAtValid = state.opportunities.filter(o => o.createdAt !== null);
+    assert(opportunitiesWithCreatedAtValid.length === state.opportunities.length, "All opportunities must have valid creation dates");
+
+    const opportunitiesWithClosedDateValid = state.opportunities.filter(o => o.closedDate === null || o.closedDate >= o.createdAt);
+    assert(opportunitiesWithClosedDateValid.length === state.opportunities.length, "All opportunities must have valid closed dates");
+
+    const opportunitiesWithLostReasonValid = state.opportunities.filter(o => o.lostReason === null || ["price", "feature_missing", "competitor", "budget"].includes(o.lostReason));
+    assert(opportunitiesWithLostReasonValid.length === state.opportunities.length, "All opportunities must have valid lost reasons");
+
+    const opportunitiesWithOwnerValid = state.opportunities.filter(o => state.users.some(u => u.id === o.owner));
+    assert(opportunitiesWithOwnerValid.length === state.opportunities.length, "All opportunities must have valid owners");
+
+    const opportunitiesWithProductsValid = state.opportunities.filter(o => o.products.every(p => state.products.some(prod => prod.id === p)));
+    assert(opportunitiesWithProductsValid.length === state.opportunities.length, "All opportunities must have valid products");
+
+    const opportunitiesWithConversionRateValid = state.opportunities.filter(o => o.conversionRate >= 0 && o.conversionRate <= 1);
+    assert(opportunitiesWithConversionRateValid.length === state.opportunities.length, "All opportunities must have valid conversion rates");
+
+    const opportunitiesWithIdValid = state.opportunities.filter(o => o.id !== null);
+    assert(opportunitiesWithIdValid.length === state.opportunities.length, "All opportunities must have valid IDs");
+
+    const contractsWithTitleValid = state.contracts.filter(c => c.title.length > 0);
+    assert(contractsWithTitleValid.length === state.contracts.length, "All contracts must have valid titles");
+
+    const contractsWithStartDateValid = state.contracts.filter(c => c.startDate !== null);
+    assert(contractsWithStartDateValid.length === state.contracts.length, "All contracts must have valid start dates");
+
+    const contractsWithEndDateValid = state.contracts.filter(c => c.endDate !== null);
+    assert(contractsWithEndDateValid.length === state.contracts.length, "All contracts must have valid end dates");
+
+    const contractsWithValueValid = state.contracts.filter(c => c.value > 0);
+    assert(contractsWithValueValid.length === state.contracts.length, "All contracts must have valid values");
+
+    const contractsWithTermsValid = state.contracts.filter(c => ["net_30", "net_45", "net_60"].includes(c.terms));
+    assert(contractsWithTermsValid.length === state.contracts.length, "All contracts must have valid terms");
+
+    const contractsWithAutoRenewValid = state.contracts.filter(c => typeof c.autoRenew === "boolean");
+    assert(contractsWithAutoRenewValid.length === state.contracts.length, "All contracts must have valid autoRenew values");
+
+    const contractsWithRenewalNoticeValid = state.contracts.filter(c => c.renewalNoticeDays > 0);
+    assert(contractsWithRenewalNoticeValid.length === state.contracts.length, "All contracts must have valid renewal notice days");
+
+    const contractsWithSignedDateValid = state.contracts.filter(c => c.signedDate !== null);
+    assert(contractsWithSignedDateValid.length === state.contracts.length, "All contracts must have valid signed dates");
+
+    const contractsWithSignedByValid = state.contracts.filter(c => typeof c.signedBy === "string" && c.signedBy.length > 0);
+    assert(contractsWithSignedByValid.length === state.contracts.length, "All contracts must have valid signed by values");
+
+    const contractsWithVersionValid = state.contracts.filter(c => c.version > 0 && c.version <= 10);
+    assert(contractsWithVersionValid.length === state.contracts.length, "All contracts must have valid versions");
+
+    const contractsWithClausesValid = state.contracts.filter(c => c.clauses.every(cl => ["confidentiality", "data_protection", "service_level", "termination", "liability"].includes(cl)));
+    assert(contractsWithClausesValid.length === state.contracts.length, "All contracts must have valid clauses");
+
+    const contractsWithStatusValid = state.contracts.filter(c => ["active", "expired", "terminated"].includes(c.status));
+    assert(contractsWithStatusValid.length === state.contracts.length, "All contracts must have valid statuses");
+
+    const contractsWithIdValid = state.contracts.filter(c => c.id !== null);
+    assert(contractsWithIdValid.length === state.contracts.length, "All contracts must have valid IDs");
+
+    const contractsWithCustomerIdValid = state.contracts.filter(c => state.customers.some(cu => cu.id === c.customerId));
+    assert(contractsWithCustomerIdValid.length === state.contracts.length, "All contracts must reference valid customers");
+
+    const contractsWithSubscriptionIdValid = state.contracts.filter(c => state.subscriptions.some(s => s.id === c.subscriptionId));
+    assert(contractsWithSubscriptionIdValid.length === state.contracts.length, "All contracts must reference valid subscriptions");
+
+    const contractsWithAccountIdValid = state.contracts.filter(c => state.accounts.some(a => a.id === c.accountId));
+    assert(contractsWithAccountIdValid.length === state.contracts.length, "All contracts must reference valid accounts");
+
+    const contractsWithStartDateLessThanEndDateValid = state.contracts.filter(c => c.startDate <= c.endDate);
+    assert(contractsWithStartDateLessThanEndDateValid.length === state.contracts.length, "All contracts must have start date <= end date");
+
+    const contractsWithSignedDateBeforeStartDateValid = state.contracts.filter(c => c.signedDate <= c.startDate);
+    assert(contractsWithSignedDateBeforeStartDateValid.length === state.contracts.length, "All contracts must have signed date <= start date");
+
+    const contractsWithTermsValid = state.contracts.filter(c => ["net_30", "net_45", "net_60"].includes(c.terms));
+    assert(contractsWithTermsValid.length === state.contracts.length, "All contracts must have valid terms");
+
+    const contractsWithAutoRenewValid = state.contracts.filter(c => typeof c.autoRenew === "boolean");
+    assert(contractsWithAutoRenewValid.length === state.contracts.length, "All contracts must have valid autoRenew values");
+
+    const contractsWithRenewalNoticeValid = state.contracts.filter(c => c.renewalNoticeDays > 0);
+    assert(contractsWithRenewalNoticeValid.length === state.contracts.length, "All contracts must have valid renewal notice days");
+
+    const contractsWithSignedDateValid = state.contracts.filter(c => c.signedDate !== null);
+    assert(contractsWithSignedDateValid.length === state.contracts.length, "All contracts must have valid signed dates");
+
+    const contractsWithSignedByValid = state.contracts.filter(c => typeof c.signedBy === "string" && c.signedBy.length > 0);
+    assert(contractsWithSignedByValid.length === state.contracts.length, "All contracts must have valid signed by values");
+
+    const contractsWithVersionValid = state.contracts.filter(c => c.version > 0 && c.version <= 10);
+    assert(contractsWithVersionValid.length === state.contracts.length, "All contracts must have valid versions");
+
+    const contractsWithClausesValid = state.contracts.filter(c => c.clauses.every(cl => ["confidentiality", "data_protection", "service_level", "termination", "liability"].includes(cl)));
+    assert(contractsWithClausesValid.length === state.contracts.length, "All contracts must have valid clauses");
+
+    const contractsWithStatusValid = state.contracts.filter(c => ["active", "expired", "terminated"].includes(c.status));
+    assert(contractsWithStatusValid.length === state.contracts.length, "All contracts must have valid statuses");
+
+    const contractsWithIdValid = state.contracts.filter(c => c.id !== null);
+    assert(contractsWithIdValid.length === state.contracts.length, "All contracts must have valid IDs");
+
+    const contractsWithCustomerIdValid = state.contracts.filter(c => state.customers.some(cu => cu.id === c.customerId));
+    assert(contractsWithCustomerIdValid.length === state.contracts.length, "All contracts must reference valid customers");
+
+    const contractsWithSubscriptionIdValid = state.contracts.filter(c => state.subscriptions.some(s => s.id === c.subscriptionId));
+    assert(contractsWithSubscriptionIdValid.length === state.contracts.length, "All contracts must reference valid subscriptions");
+
+    const contractsWithAccountIdValid = state.contracts.filter(c => state.accounts.some(a => a.id === c.accountId));
+    assert(contractsWithAccountIdValid.length === state.contracts.length, "All contracts must reference valid accounts");
+
+    const contractsWithStartDateLessThanEndDateValid = state.contracts.filter(c => c.startDate <= c.endDate);
+    assert(contractsWithStartDateLessThanEndDateValid.length === state.contracts.length, "All contracts must have start date <= end date");
+
+    const contractsWithSignedDateBeforeStartDateValid = state.contracts.filter(c => c.signedDate <= c.startDate);
+    assert(contractsWithSignedDateBeforeStartDateValid.length === state.contracts.length, "All contracts must have signed date <= start date");
+
+    const contractsWithTermsValid = state.contracts.filter(c => ["net_30", "net_45", "net_60"].includes(c.terms));
+    assert(contractsWithTermsValid.length === state.contracts.length, "All contracts must have valid terms");
+
+    const contractsWithAutoRenewValid = state.contracts.filter(c => typeof c.autoRenew === "boolean");
+    assert(contractsWithAutoRenewValid.length === state.contracts.length, "All contracts must have valid autoRenew values");
+
+    const contractsWithRenewalNoticeValid = state.contracts.filter(c => c.renewalNoticeDays > 0);
+    assert(contractsWithRenewalNoticeValid.length === state.contracts.length, "All contracts must have valid renewal notice days");
+
+    const contractsWithSignedDateValid = state.contracts.filter(c => c.signedDate !== null);
+    assert(contractsWithSignedDateValid.length === state.contracts.length, "All contracts must have valid signed dates");
+
+    const contractsWithSignedByValid = state.contracts.filter(c => typeof c.signedBy === "string" && c.signedBy.length > 0);
+    assert(contractsWithSignedByValid.length === state.contracts.length, "All contracts must have valid signed by values");
+
+    const contractsWithVersionValid = state.contracts.filter(c => c.version > 0 && c.version <= 10);
+    assert(contractsWithVersionValid.length === state.contracts.length, "All contracts must have valid versions");
+
+    const contractsWithClausesValid = state.contracts.filter(c => c.clauses.every(cl => ["confidentiality", "data_protection", "service_level", "termination", "liability"].includes(cl)));
+    assert(contractsWithClausesValid.length === state.contracts.length, "All contracts must have valid clauses");
+
+    const contractsWithStatusValid = state.contracts.filter(c => ["active", "expired", "terminated"].includes(c.status));
+    assert(contractsWithStatusValid.length === state.contracts.length, "All contracts must have valid statuses");
+
+    const contractsWithIdValid = state.contracts.filter(c => c.id !== null);
+    assert(contractsWithIdValid.length === state.contracts.length, "All contracts must have valid IDs");
+
+    const contractsWithCustomerIdValid = state.contracts.filter(c => state.customers.some(cu => cu.id === c.customerId));
+    assert(contractsWithCustomerIdValid.length === state.contracts.length, "All contracts must reference valid customers");
+
+    const contractsWithSubscriptionIdValid = state.contracts.filter(c => state.subscriptions.some(s => s.id === c.subscriptionId));
+    assert(contractsWithSubscriptionIdValid.length === state.contracts.length, "All contracts must reference valid subscriptions");
+
+    const contractsWithAccountIdValid = state.contracts.filter(c => state.accounts.some(a => a.id === c.accountId));
+    assert(contractsWithAccountIdValid.length === state.contracts.length, "All contracts must reference valid accounts");
+
+    const contractsWithStartDateLessThanEndDateValid = state.contracts.filter(c => c.startDate <= c.endDate);
+    assert(contractsWithStartDateLessThanEndDateValid.length === state.contracts.length, "All contracts must have start date <= end date");
+
+    const contractsWithSignedDateBeforeStartDateValid = state.contracts.filter(c => c.signedDate <= c.startDate);
+    assert(contractsWithSignedDateBeforeStartDateValid.length === state.contracts.length, "All contracts must have signed date <= start date");
+
+    const contractsWithTermsValid = state.contracts.filter(c => ["net_30", "net_45", "net_60"].includes(c.terms));
+    assert(contractsWithTermsValid.length === state.contracts.length, "All contracts must have valid terms");
+
+    const contractsWithAutoRenewValid = state.contracts.filter(c => typeof c.autoRenew === "boolean");
+    assert(contractsWithAutoRenewValid.length === state.contracts.length, "All contracts must have valid autoRenew values");
+
+    const contractsWithRenewalNoticeValid = state.contracts.filter(c => c.renewalNoticeDays > 0);
+    assert(contractsWithRenewalNoticeValid.length === state.contracts.length, "All contracts must have valid renewal notice days");
+
+    const contractsWithSignedDateValid = state.contracts.filter(c => c.signedDate !== null);
+    assert(contractsWithSignedDateValid.length === state.contracts.length, "All contracts must have valid signed dates");
+
+    const contractsWithSignedByValid = state.contracts.filter(c => typeof c.signedBy === "string" && c.signedBy.length > 0);
+    assert(contractsWithSignedByValid.length === state.contracts.length, "All contracts must have valid signed by values");
+
+    const contractsWithVersionValid = state.contracts.filter(c => c.version > 0 && c.version <= 10);
+    assert(contractsWithVersionValid.length === state.contracts.length, "All contracts must have valid versions");
+
+    const contractsWithClausesValid = state.contracts.filter(c => c.clauses.every(cl => ["confidentiality", "data_protection", "service_level", "termination", "liability"].includes(cl)));
+    assert(contractsWithClausesValid.length === state.contracts.length, "All contracts must have valid clauses");
+
+    const contractsWithStatusValid = state.contracts.filter(c => ["active", "expired", "terminated"].includes(c.status));
+    assert(contractsWithStatusValid.length === state.contracts.length, "All contracts must have valid statuses");
+
+    const contractsWithIdValid = state.contracts.filter(c => c.id !== null);
+    assert(contractsWithIdValid.length === state.contracts.length, "All contracts must have valid IDs");
+
+    const contractsWithCustomerIdValid = state.contracts.filter(c => state.customers.some(cu => cu.id === c.customerId));
+    assert(contractsWithCustomerIdValid.length === state.contracts.length, "All contracts must reference valid customers");
+
+    const contractsWithSubscriptionIdValid = state.contracts.filter(c => state.subscriptions.some(s => s.id === c.subscriptionId));
+    assert(contractsWithSubscriptionIdValid.length === state.contracts.length, "All contracts must reference valid subscriptions");
+
+    const contractsWithAccountIdValid = state.contracts.filter(c => state.accounts.some(a => a.id === c.accountId));
+    assert(contractsWithAccountIdValid.length === state.contracts.length, "All contracts must reference valid accounts");
+
+    const contractsWithStartDateLessThanEndDateValid = state.contracts.filter(c => c.startDate <= c.endDate);
+    assert(contractsWithStartDateLessThanEndDateValid.length === state.contracts.length, "All contracts must have start date <= end date");
+
+    const contractsWithSignedDateBeforeStartDateValid = state.contracts.filter(c => c.signedDate <= c.startDate);
+    assert(contractsWithSignedDateBeforeStartDateValid.length === state.contracts.length, "All contracts must have signed date <= start date");
+
+    const contractsWithTermsValid = state.contracts.filter(c => ["net_30", "net_45", "net_60"].includes(c.terms));
+    assert(contractsWithTermsValid.length === state.contracts.length, "All contracts must have valid terms");
+
+    const contractsWithAutoRenewValid = state.contracts.filter(c => typeof c.autoRenew === "boolean");
+    assert(contractsWithAutoRenewValid.length === state.contracts.length, "All contracts must have valid autoRenew values");
+
+    const contractsWithRenewalNoticeValid = state.contracts.filter(c => c.renewalNoticeDays > 0);
+    assert(contractsWithRenewalNoticeValid.length === state.contracts.length, "All contracts must have valid renewal notice days");
+
+    const contractsWithSignedDateValid = state.contracts.filter(c => c.signedDate !== null);
+    assert(contractsWithSignedDateValid.length === state.contracts.length, "All contracts must have valid signed dates");
+
+    const contractsWithSignedByValid = state.contracts.filter(c => typeof c.signedBy === "string" && c.signedBy.length > 0);
+    assert(contractsWithSignedByValid.length === state.contracts.length, "All contracts must have valid signed by values");
+
+    const contractsWithVersionValid = state.contracts.filter(c => c.version > 0 && c.version <= 10);
+    assert(contractsWithVersionValid.length === state.contracts.length, "All contracts must have valid versions");
+
+    const contractsWithClausesValid = state.contracts.filter(c => c.clauses.every(cl => ["confidentiality", "data_protection", "service_level", "termination", "liability"].includes(cl)));
+    assert(contractsWithClausesValid.length === state.contracts.length, "All contracts must have valid clauses");
+
+    const contractsWithStatusValid = state.contracts.filter(c => ["active", "expired", "terminated"].includes(c.status));
+    assert(contractsWithStatusValid.length === state.contracts.length, "All contracts must have valid statuses");
+
+    const contractsWithIdValid = state.contracts.filter(c => c.id !== null);
+    assert(contractsWithIdValid.length === state.contracts.length, "All contracts must have valid IDs");
+
+    const contractsWithCustomerIdValid = state.contracts.filter(c => state.customers.some(cu => cu.id === c.customerId));
+    assert(contractsWithCustomerIdValid.length === state.contracts.length, "All contracts must reference valid customers");
+
+    const contractsWithSubscriptionIdValid = state.contracts.filter(c => state.subscriptions.some(s => s.id === c.subscriptionId));
+    assert(contractsWithSubscriptionIdValid.length === state.contracts.length, "All contracts must reference valid subscriptions");
+
+    const contractsWithAccountIdValid = state.contracts.filter(c => state.accounts.some(a => a.id === c.accountId));
+    assert(contractsWithAccountIdValid.length === state.contracts.length, "All contracts must reference valid accounts");
+
+    const contractsWithStartDateLessThanEndDateValid = state.contracts.filter(c => c.startDate <= c.endDate);
+    assert(contractsWithStartDateLessThanEndDateValid.length === state.contracts.length, "All contracts must have start date <= end date");
+
+    const contractsWithSignedDateBeforeStartDateValid = state.contracts.filter(c => c.signedDate <= c.startDate);
+    assert(contractsWithSignedDateBeforeStartDateValid.length === state.contracts.length, "All contracts must have signed date <= start date");
+
+    const contractsWithTermsValid = state.contracts.filter(c => ["net_30", "net_45", "net_60"].includes(c.terms));
+    assert(contractsWithTermsValid.length === state.contracts.length, "All contracts must have valid terms");
+
+    const contractsWithAutoRenewValid = state.contracts.filter(c => typeof c.autoRenew === "boolean");
+    assert(contractsWithAutoRenewValid.length === state.contracts.length, "All contracts must have valid autoRenew values");
+
+    const contractsWithRenewalNoticeValid = state.contracts.filter(c => c.renewalNoticeDays > 0);
+    assert(contractsWithRenewalNoticeValid.length === state.contracts.length, "All contracts must have valid renewal notice days");
+
+    const contractsWithSignedDateValid = state.contracts.filter(c => c.signedDate !== null);
+    assert(contractsWithSignedDateValid.length === state.contracts.length, "All contracts must have valid signed dates");
+
+    const

@@ -1,0 +1,137 @@
+{
+  "id": "empero-ai__Qwen3.8-35B-A3B-Distill-GGUF",
+  "repo": "empero-ai/Qwen3.8-35B-A3B-Distill-GGUF",
+  "quant": "Q4_K_M",
+  "files": [
+    "Qwen3.8-35B-A3B-Q4_K_M.gguf"
+  ],
+  "sizeGB": 20.22,
+  "trendingScore": 109,
+  "downloads": 64967,
+  "likes": 113,
+  "createdAt": "2026-09-16T18:58:46.000Z",
+  "testedAt": "2026-09-21T16:47:41.564Z",
+  "status": "ok",
+  "hardware": {
+    "vramGB": 96,
+    "contextSize": 40960,
+    "extraArgs": [
+      "--no-mmap",
+      "--jinja",
+      "-fa",
+      "on"
+    ],
+    "llamaCpp": "version: 0.4.0-dev (build 10809, commit 5266f24da)"
+  },
+  "settings": {
+    "temperature": 0.3,
+    "topP": 0.95,
+    "maxTokens": 32768,
+    "reasoning": {
+      "effort": "low",
+      "budget": 4096
+    },
+    "prefetchActive": false
+  },
+  "download": {
+    "seconds": 310.3,
+    "mbps": 70,
+    "prefetched": false
+  },
+  "load": {
+    "seconds": 6
+  },
+  "generation": {
+    "ttftMs": 1800,
+    "totalMs": 518391,
+    "finishReason": "length",
+    "error": null,
+    "promptTokens": 1190,
+    "completionTokens": 32768,
+    "promptTps": 664.7443080570362,
+    "genTps": 63.42946969244717,
+    "reasoningChars": 1405,
+    "contentChars": 135607
+  },
+  "memory": {
+    "peakVramGB": 22.26,
+    "peakGttGB": 0.5,
+    "peakRssGB": 0.32
+  },
+  "power": {
+    "source": "amdgpu power1_input",
+    "avgW": 70.3,
+    "peakW": 72.7,
+    "energyWh": 10.145,
+    "tokensPerWh": 3230,
+    "whPer1kTokens": 0.31,
+    "rateUSDPerKWh": 0.20716,
+    "costUSD": 0.002102,
+    "costPer1MTokens": 0.0641
+  },
+  "evaluation": {
+    "hasFunction": true,
+    "functionForm": "declaration",
+    "fenced": true,
+    "extraneous": true,
+    "static": {
+      "totalLines": 2316,
+      "codeLines": 1840,
+      "nestedFns": 81,
+      "assertions": 421,
+      "assertHelpers": [
+        "assert"
+      ],
+      "topLevelExtras": 0,
+      "systems": 20,
+      "externalDeps": false,
+      "features": {
+        "generators": false,
+        "asyncAwait": false,
+        "customErrors": true,
+        "mapSet": true,
+        "promises": true
+      }
+    },
+    "syntaxOk": false,
+    "syntaxError": "/var/home/CypherAZ/strix/models/_eval/empero-ai__Qwen3.8-35B-A3B-Distill-GGUF/output.mjs:1446\n    const contractsWithTerms = state.contracts.filter(c => c.terms !== null);\n          ^\nSyntaxError: Identifier 'contractsWithTerms' has already been declared\n    at checkSyntax (node:internal/main/check_syntax:74:5)\nNode.js v22.23.2",
+    "execution": null,
+    "errorKind": null,
+    "score": {
+      "version": 3,
+      "total": 23,
+      "max": {
+        "syntax": 10,
+        "completed": 5,
+        "lineCount": 5,
+        "nestedFns": 5,
+        "assertions": 5,
+        "techniques": 5,
+        "systems": 5,
+        "outputRules": 5,
+        "noExternalDeps": 5,
+        "execution": 25,
+        "returnShape": 10,
+        "customers": 5,
+        "invariants": 5,
+        "deterministic": 5
+      },
+      "breakdown": {
+        "syntax": 0,
+        "completed": 0,
+        "lineCount": 0,
+        "nestedFns": 5,
+        "assertions": 5,
+        "techniques": 3,
+        "systems": 5,
+        "outputRules": 0,
+        "noExternalDeps": 5,
+        "execution": 0,
+        "returnShape": 0,
+        "customers": 0,
+        "invariants": 0,
+        "deterministic": 0
+      }
+    }
+  }
+}
