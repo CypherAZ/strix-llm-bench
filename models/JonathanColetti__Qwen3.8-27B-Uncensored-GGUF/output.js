@@ -1,0 +1,532 @@
+function runEnterpriseSimulation() {
+  let seed = 42;
+  const mulberry32 = () => {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+  const rand = () => mulberry32();
+  const randInt = (min, max) => Math.floor(rand() * (max - min + 1)) + min;
+  const pick = (arr) => arr[Math.floor(rand() * arr.length)];
+  const chance = (p) => rand() < p;
+  const idCounters = new Map();
+  const generateId = (prefix) => {
+    const count = (idCounters.get(prefix) || 0) + 1;
+    idCounters.set(prefix, count);
+    return `${prefix}_${String(count).padStart(6, '0')}`;
+  };
+  const BASE_DATE = new Date('2024-01-01T00:00:00Z');
+  const NOW = new Date('2024-12-15T00:00:00Z');
+  const randomDate = (start, end) => new Date(start.getTime() + rand() * (end.getTime() - start.getTime()));
+  const addDays = (date, days) => new Date(date.getTime() + days * 86400000);
+  const addMonths = (date, months) => { const d = new Date(date); d.setMonth(d.getMonth() + months); return d; };
+  const daysBetween = (a, b) => Math.abs(b.getTime() - a.getTime()) / 86400000;
+  const monthsBetween = (a, b) => (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+  class ValidationError extends Error { constructor(msg, field) { super(msg); this.name = 'ValidationError'; this.field = field; } }
+  class BusinessRuleError extends Error { constructor(msg, rule) { super(msg); this.name = 'BusinessRuleError'; this.rule = rule; } }
+  class PaymentError extends Error { constructor(msg, code) { super(msg); this.name = 'PaymentError'; this.code = code; } }
+  const TIERS = ['basic', 'pro', 'enterprise'];
+  const TIER_CONFIG = {
+    basic: { price: 49, apiLimit: 1000, maxUsers: 5, slaHours: 48 },
+    pro: { price: 199, apiLimit: 10000, maxUsers: 25, slaHours: 24 },
+    enterprise: { price: 999, apiLimit: 100000, maxUsers: 200, slaHours: 4 }
+  };
+  const ROLES = ['owner', 'admin', 'member', 'viewer'];
+  const ROLE_PERMISSIONS = {
+    owner: ['read', 'write', 'delete', 'billing', 'admin', 'invite'],
+    admin: ['read', 'write', 'delete', 'billing', 'invite'],
+    member: ['read', 'write', 'invite'],
+    viewer: ['read']
+  };
+  const OPP_STAGES = ['prospecting', 'qualification', 'proposal', 'negotiation', 'closed_won', 'closed_lost'];
+  const TICKET_PRIORITIES = ['low', 'medium', 'high', 'critical'];
+  const TICKET_STATUSES = ['open', 'in_progress', 'resolved', 'closed'];
+  const TASK_STATUSES = ['todo', 'in_progress', 'review', 'done'];
+  const INDUSTRIES = ['Technology', 'Finance', 'Healthcare', 'Retail', 'Manufacturing', 'Education', 'Media', 'Logistics'];
+  const COMPANY_NAMES = ['Acme', 'Globex', 'Initech', 'Umbrella', 'Stark', 'Wayne', 'Wonka', 'Tyrell', 'Cyberdyne', 'Aperture', 'Black Mesa', 'Redacted', 'Vandelay', 'Pied Piper', 'Dunder Mifflin', 'Soylent', 'Hooli', 'Prestige', 'Bluth', 'Wernher'];
+  const FIRST_NAMES = ['James', 'Mary', 'John', 'Patricia', 'Robert', 'Jennifer', 'Michael', 'Linda', 'William', 'Elizabeth', 'David', 'Barbara', 'Richard', 'Susan', 'Joseph', 'Jessica', 'Thomas', 'Sarah', 'Charles', 'Karen'];
+  const LAST_NAMES = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Taylor', 'Moore', 'Jackson', 'Martin', 'Lee'];
+  const customers = [];
+  const users = [];
+  const accounts = [];
+  const products = [];
+  const subscriptions = [];
+  const pricingPlans = [];
+  const invoices = [];
+  const payments = [];
+  const tickets = [];
+  const opportunities = [];
+  const contracts = [];
+  const usageRecords = [];
+  const apiRequests = [];
+  const auditLogs = [];
+  const notifications = [];
+  const featureFlags = [];
+  const permissions = [];
+  const teams = [];
+  const projects = [];
+  const tasks = [];
+  const logAudit = (actor, action, entity, entityId, metadata = {}) => {
+    auditLogs.push({ id: generateId('audit'), actor, action, entity, entityId, timestamp: randomDate(BASE_DATE, NOW), metadata });
+  };
+  const createNotification = (userId, type, message, priority = 'normal') => {
+    const n = { id: generateId('notif'), userId, type, message, priority, read: chance(0.6), createdAt: randomDate(BASE_DATE, NOW) };
+    notifications.push(n);
+    return n;
+  };
+  const createFeatureFlag = (name, description, enabled, tier) => {
+    const flag = { id: generateId('flag'), name, description, enabled, tier, createdAt: BASE_DATE };
+    featureFlags.push(flag);
+    return flag;
+  };
+  const validate = (obj, rules) => {
+    for (const [field, rule] of Object.entries(rules)) {
+      if (rule.required && (obj[field] === undefined || obj[field] === null || obj[field] === '')) throw new ValidationError(`Field "${field}" is required`, field);
+      if (rule.min !== undefined && typeof obj[field] === 'number' && obj[field] < rule.min) throw new ValidationError(`Field "${field}" must be >= ${rule.min}`, field);
+      if (rule.max !== undefined && typeof obj[field] === 'number' && obj[field] > rule.max) throw new ValidationError(`Field "${field}" must be <= ${rule.max}`, field);
+      if (rule.pattern && typeof obj[field] === 'string' && !rule.pattern.test(obj[field])) throw new ValidationError(`Field "${field}" does not match pattern`, field);
+    }
+    return true;
+  };
+  const calculateTax = (amount, taxRate = 0.08) => Math.round(amount * taxRate * 100) / 100;
+  const calculateProration = (plan, daysRemaining, totalDays) => Math.round((plan.monthlyPrice / totalDays) * daysRemaining * 100) / 100;
+  const calculateMRR = () => subscriptions.filter(s => s.status === 'active').reduce((sum, s) => sum + s.monthlyPrice, 0);
+  const calculateARR = () => calculateMRR() * 12;
+  const calculateChurnRate = () => { const total = subscriptions.length; const churned = subscriptions.filter(s => s.status === 'cancelled').length; return total > 0 ? churned / total : 0; };
+  const calculateSLA = (ticket, tier) => { const slaHours = TIER_CONFIG[tier].slaHours; const deadline = new Date(ticket.createdAt.getTime() + slaHours * 3600000); return { deadline, breached: NOW > deadline }; };
+  const calculateCLV = (customerId) => {
+    const custInvoices = invoices.filter(i => i.customerId === customerId && i.status === 'paid');
+    const totalRevenue = custInvoices.reduce((sum, i) => sum + i.total, 0);
+    const custSubs = subscriptions.filter(s => s.customerId === customerId);
+    const avgLifespan = custSubs.length > 0 ? custSubs.reduce((sum, s) => sum + daysBetween(s.startDate, s.endDate || NOW), 0) / custSubs.length : 0;
+    const avgMonthly = totalRevenue / Math.max(avgLifespan / 30, 1);
+    return Math.round(avgMonthly * 12 * 3);
+  };
+  const groupBy = (arr, keyFn) => { const result = new Map(); for (const item of arr) { const key = keyFn(item); if (!result.has(key)) result.set(key, []); result.get(key).push(item); } return result; };
+  function* batchGenerator(items, batchSize) { for (let i = 0; i < items.length; i += batchSize) yield items.slice(i, i + batchSize); }
+  const getTaskDependencies = (taskId, allTasks, visited = new Set()) => {
+    if (visited.has(taskId)) return [];
+    visited.add(taskId);
+    const task = allTasks.find(t => t.id === taskId);
+    if (!task || task.dependencies.length === 0) return [task];
+    const deps = task.dependencies.flatMap(depId => getTaskDependencies(depId, allTasks, visited));
+    return [task, ...deps];
+  };
+  const checkRateLimit = (customerId, tier) => {
+    const limit = TIER_CONFIG[tier].apiLimit;
+    const custRequests = apiRequests.filter(r => r.customerId === customerId);
+    return { allowed: custRequests.length < limit, limit, used: custRequests.length };
+  };
+  const hasPermission = (userId, permission) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return false;
+    return (ROLE_PERMISSIONS[user.role] || []).includes(permission);
+  };
+  const calculateDiscount = (basePrice, tier, index) => {
+    let discount = 0;
+    if (tier === 'enterprise' && index > 50) discount = 0.15;
+    else if (tier === 'enterprise' && index > 20) discount = 0.10;
+    else if (tier === 'pro' && index > 10) discount = 0.05;
+    return Math.round(basePrice * (1 - discount) * 100) / 100;
+  };
+  const generateInvoice = (subscription, periodStart, periodEnd) => {
+    const plan = pricingPlans.find(p => p.id === subscription.planId);
+    const baseAmount = plan.monthlyPrice;
+    const tax = calculateTax(baseAmount);
+    const discount = subscription.discount || 0;
+    const total = Math.round((baseAmount + tax - discount) * 100) / 100;
+    const invoice = { id: generateId('inv'), subscriptionId: subscription.id, customerId: subscription.customerId, periodStart, periodEnd, baseAmount, tax, discount, total, status: 'pending', issuedAt: periodStart, dueDate: addDays(periodStart, 30) };
+    invoices.push(invoice);
+    logAudit('system', 'invoice.created', 'invoice', invoice.id, { amount: total });
+    return invoice;
+  };
+  const processPayment = (invoice) => {
+    const payment = { id: generateId('pay'), invoiceId: invoice.id, customerId: invoice.customerId, amount: invoice.total, status: 'pending', method: pick(['credit_card', 'ach', 'wire']), processedAt: null };
+    const success = chance(0.85);
+    if (success) { payment.status = 'completed'; payment.processedAt = new Date(invoice.issuedAt.getTime() + rand() * 5 * 86400000); invoice.status = 'paid'; }
+    else { payment.status = 'failed'; payment.failureReason = pick(['insufficient_funds', 'card_expired', 'bank_error', 'timeout']); }
+    payments.push(payment);
+    logAudit('billing', 'payment.processed', 'payment', payment.id, { status: payment.status });
+    if (payment.status === 'failed') {
+      const customer = customers.find(c => c.id === invoice.customerId);
+      if (customer) createNotification(customer.ownerUserId, 'payment_failed', `Payment of $${invoice.total} failed: ${payment.failureReason}`, 'high');
+    }
+    return payment;
+  };
+  const processRefund = (payment, amount, reason) => {
+    if (amount > payment.amount) throw new BusinessRuleError('Refund exceeds original payment amount', 'refund_limit');
+    const refund = { id: generateId('ref'), paymentId: payment.id, amount, reason, processedAt: new Date(payment.processedAt.getTime() + rand() * 7 * 86400000), status: 'completed' };
+    logAudit('billing', 'refund.processed', 'refund', refund.id, { amount, reason });
+    return refund;
+  };
+  const upgradeSubscription = (subscription, newPlanId) => {
+    const unpaidInvoices = invoices.filter(i => i.subscriptionId === subscription.id && i.status === 'pending');
+    if (unpaidInvoices.length > 0) throw new BusinessRuleError('Cannot upgrade with unpaid invoices', 'unpaid_invoices_block_upgrade');
+    const newPlan = pricingPlans.find(p => p.id === newPlanId);
+    if (!newPlan) throw new ValidationError('Plan not found', 'planId');
+    const daysRemaining = Math.max(0, daysBetween(NOW, subscription.endDate));
+    const proration = calculateProration(newPlan, daysRemaining, 30);
+    const oldPlan = pricingPlans.find(p => p.id === subscription.planId);
+    const credit = calculateProration(oldPlan, daysRemaining, 30);
+    const adjustment = Math.round((proration - credit) * 100) / 100;
+    subscription.planId = newPlanId;
+    subscription.monthlyPrice = newPlan.monthlyPrice;
+    subscription.tier = newPlan.tier;
+    logAudit('subscription', 'subscription.upgraded', 'subscription', subscription.id, { from: oldPlan.id, to: newPlanId, adjustment });
+    return { adjustment, proration, credit };
+  };
+  const downgradeSubscription = (subscription, newPlanId) => {
+    const newPlan = pricingPlans.find(p => p.id === newPlanId);
+    if (!newPlan) throw new ValidationError('Plan not found', 'planId');
+    subscription.planId = newPlanId;
+    subscription.monthlyPrice = newPlan.monthlyPrice;
+    subscription.tier = newPlan.tier;
+    logAudit('subscription', 'subscription.downgraded', 'subscription', subscription.id, { to: newPlanId });
+  };
+  const cancelSubscription = (subscription, reason) => {
+    subscription.status = 'cancelled';
+    subscription.cancelledAt = randomDate(NOW, NOW);
+    subscription.cancellationReason = reason;
+    logAudit('subscription', 'subscription.cancelled', 'subscription', subscription.id, { reason });
+    const customer = customers.find(c => c.id === subscription.customerId);
+    if (customer) { customer.status = 'churned'; createNotification(customer.ownerUserId, 'subscription_cancelled', `Subscription cancelled: ${reason}`, 'high'); }
+  };
+  const createCustomer = (name, industry, tier, ownerUserId) => {
+    const customer = { id: generateId('cust'), name, industry, tier, ownerUserId, status: 'active', createdAt: randomDate(BASE_DATE, NOW), mrr: 0, clv: 0 };
+    customers.push(customer);
+    logAudit('system', 'customer.created', 'customer', customer.id, { name, tier });
+    return customer;
+  };
+  const createAccount = (customerId, name) => {
+    const account = { id: generateId('acct'), customerId, name, status: 'active', createdAt: randomDate(BASE_DATE, NOW) };
+    accounts.push(account);
+    return account;
+  };
+  const createUser = (firstName, lastName, role, accountId) => {
+    const user = { id: generateId('user'), firstName, lastName, email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`, role, accountId, status: 'active', createdAt: randomDate(BASE_DATE, NOW) };
+    users.push(user);
+    permissions.push({ userId: user.id, role, permissions: ROLE_PERMISSIONS[role] });
+    return user;
+  };
+  const createTicket = (customerId, subject, priority, tier) => {
+    const ticket = { id: generateId('tick'), customerId, subject, priority, status: 'open', tier, createdAt: randomDate(BASE_DATE, NOW), resolvedAt: null, slaDeadline: null };
+    const sla = calculateSLA(ticket, tier);
+    ticket.slaDeadline = sla.deadline;
+    tickets.push(ticket);
+    logAudit('support', 'ticket.created', 'ticket', ticket.id, { priority, tier });
+    return ticket;
+  };
+  const resolveTicket = (ticket) => {
+    ticket.status = 'resolved';
+    ticket.resolvedAt = new Date(ticket.createdAt.getTime() + rand() * TIER_CONFIG[ticket.tier].slaHours * 3600000);
+    logAudit('support', 'ticket.resolved', 'ticket', ticket.id, {});
+  };
+  const createOpportunity = (name, value, stage, customerId = null) => {
+    const opp = { id: generateId('opp'), name, value, stage, customerId, createdAt: randomDate(BASE_DATE, NOW), closedAt: null };
+    opportunities.push(opp);
+    return opp;
+  };
+  const closeOpportunity = (opp, won) => {
+    opp.stage = won ? 'closed_won' : 'closed_lost';
+    opp.closedAt = new Date(opp.createdAt.getTime() + rand() * 60 * 86400000);
+    if (won) {
+      const customer = createCustomer(opp.name, pick(INDUSTRIES), 'pro', null);
+      opp.customerId = customer.id;
+      const plan = pricingPlans.find(p => p.tier === 'pro');
+      const sub = { id: generateId('sub'), customerId: customer.id, planId: plan.id, tier: 'pro', monthlyPrice: plan.monthlyPrice, status: 'active', startDate: opp.closedAt, endDate: addMonths(opp.closedAt, 12), discount: 0, failedPaymentCount: 0 };
+      subscriptions.push(sub);
+      logAudit('sales', 'opportunity.closed_won', 'opportunity', opp.id, { customerId: customer.id });
+    }
+    return opp;
+  };
+  const createProject = (name, customerId) => {
+    const project = { id: generateId('proj'), name, customerId, status: 'active', createdAt: randomDate(BASE_DATE, NOW), tasks: [] };
+    projects.push(project);
+    return project;
+  };
+  const createTask = (project, title, status, dependencies = []) => {
+    const task = { id: generateId('task'), projectId: project.id, title, status, dependencies, createdAt: randomDate(BASE_DATE, NOW) };
+    tasks.push(task);
+    project.tasks.push(task.id);
+    return task;
+  };
+  const updateTaskStatus = (taskId, newStatus) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) throw new ValidationError('Task not found', 'taskId');
+    const validTransitions = { todo: ['in_progress'], in_progress: ['review', 'todo'], review: ['done', 'in_progress'], done: [] };
+    if (!validTransitions[task.status]?.includes(newStatus)) throw new BusinessRuleError(`Invalid transition: ${task.status} -> ${newStatus}`, 'task_transition');
+    const oldStatus = task.status;
+    task.status = newStatus;
+    logAudit('project', 'task.status_updated', 'task', taskId, { from: oldStatus, to: newStatus });
+    return task;
+  };
+  const aggregateAnalytics = () => {
+    const byTier = groupBy(subscriptions, s => s.tier);
+    const byStatus = groupBy(invoices, i => i.status);
+    const byTicketPriority = groupBy(tickets, t => t.priority);
+    const mrr = calculateMRR();
+    const arr = calculateARR();
+    const churnRate = calculateChurnRate();
+    const activeCustomers = customers.filter(c => c.status === 'active').length;
+    const churnedCustomers = customers.filter(c => c.status === 'churned').length;
+    const avgRevenuePerCustomer = activeCustomers > 0 ? Math.round(mrr / activeCustomers * 100) / 100 : 0;
+    const outstandingRevenue = invoices.filter(i => i.status === 'pending').reduce((s, i) => s + i.total, 0);
+    const failedPayments = payments.filter(p => p.status === 'failed').length;
+    const totalPayments = payments.filter(p => p.status === 'completed').reduce((s, p) => s + p.amount, 0);
+    const openTickets = tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length;
+    const resolvedTickets = tickets.filter(t => t.status === 'resolved');
+    const avgResolutionTime = resolvedTickets.length > 0 ? resolvedTickets.reduce((s, t) => s + daysBetween(t.createdAt, t.resolvedAt), 0) / resolvedTickets.length : 0;
+    const pipelineValue = opportunities.filter(o => !o.stage.startsWith('closed')).reduce((s, o) => s + o.value, 0);
+    const closedWonRevenue = opportunities.filter(o => o.stage === 'closed_won').reduce((s, o) => s + o.value, 0);
+    const apiErrors = apiRequests.filter(r => r.status === 'error').length;
+    return { totalCustomers: customers.length, activeCustomers, churnedCustomers, MRR: Math.round(mrr * 100) / 100, ARR: Math.round(arr * 100) / 100, averageRevenuePerCustomer, churnRate: Math.round(churnRate * 10000) / 100, totalInvoices: invoices.length, outstandingRevenue: Math.round(outstandingRevenue * 100) / 100, totalPayments: Math.round(totalPayments * 100) / 100, failedPayments, refunds: payments.filter(p => p.status === 'refunded').length, openTickets, averageResolutionTime: Math.round(avgResolutionTime * 100) / 100, pipelineValue: Math.round(pipelineValue * 100) / 100, closedWonRevenue: Math.round(closedWonRevenue * 100) / 100, APIRequests: apiRequests.length, APIErrors: apiErrors };
+  };
+  const processBatchInvoices = async (subs) => {
+    const results = [];
+    for (const batch of batchGenerator(subs, 20)) {
+      for (const sub of batch) {
+        const monthsElapsed = Math.min(monthsBetween(sub.startDate, NOW), 12);
+        for (let m = 0; m < monthsElapsed; m++) {
+          const periodStart = addMonths(sub.startDate, m);
+          const periodEnd = addMonths(sub.startDate, m + 1);
+          const inv = generateInvoice(sub, periodStart, periodEnd);
+          const pay = processPayment(inv);
+          if (pay.status === 'failed') {
+            sub.failedPaymentCount++;
+            if (sub.failedPaymentCount >= 3) {
+              sub.status = 'suspended';
+              const cust = customers.find(c => c.id === sub.customerId);
+              if (cust) createNotification(cust.ownerUserId, 'subscription_suspended', 'Subscription suspended due to 3 failed payments', 'critical');
+            }
+          }
+          results.push({ invoice: inv, payment: pay });
+        }
+      }
+    }
+    return results;
+  };
+  const computeRevenueReport = () => {
+    const byMonth = new Map();
+    for (const inv of invoices) {
+      const key = `${inv.issuedAt.getFullYear()}-${String(inv.issuedAt.getMonth() + 1).padStart(2, '0')}`;
+      if (!byMonth.has(key)) byMonth.set(key, { total: 0, count: 0 });
+      const entry = byMonth.get(key);
+      entry.total += inv.total;
+      entry.count++;
+    }
+    return [...byMonth.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([month, data]) => ({ month, total: Math.round(data.total * 100) / 100, count: data.count }));
+  };
+  const computeUsageSummary = (customerId) => {
+    const records = usageRecords.filter(u => u.customerId === customerId);
+    const byMetric = groupBy(records, r => r.metric);
+    const summary = {};
+    for (const [metric, recs] of byMetric) {
+      summary[metric] = { total: recs.reduce((s, r) => s + r.value, 0), avg: Math.round(recs.reduce((s, r) => s + r.value, 0) / recs.length) };
+    }
+    return summary;
+  };
+  const escalateTicket = (ticket) => {
+    const priorityIndex = TICKET_PRIORITIES.indexOf(ticket.priority);
+    if (priorityIndex < TICKET_PRIORITIES.length - 1) {
+      ticket.priority = TICKET_PRIORITIES[priorityIndex + 1];
+      logAudit('support', 'ticket.escalated', 'ticket', ticket.id, { newPriority: ticket.priority });
+      const cust = customers.find(c => c.id === ticket.customerId);
+      if (cust) createNotification(cust.ownerUserId, 'ticket_escalated', `Ticket escalated to ${ticket.priority} priority`, 'high');
+    }
+    return ticket;
+  };
+  const getFeatureAvailability = (tier, flagName) => {
+    const flag = featureFlags.find(f => f.name === flagName);
+    if (!flag) return false;
+    const tierOrder = { basic: 0, pro: 1, enterprise: 2 };
+    return tierOrder[tier] >= tierOrder[flag.tier] && flag.enabled;
+  };
+  for (const tier of TIERS) {
+    pricingPlans.push({ id: generateId('plan'), name: `${tier.charAt(0).toUpperCase() + tier.slice(1)} Plan`, tier, monthlyPrice: TIER_CONFIG[tier].price, apiLimit: TIER_CONFIG[tier].apiLimit, maxUsers: TIER_CONFIG[tier].maxUsers, features: tier === 'basic' ? ['core'] : tier === 'pro' ? ['core', 'advanced', 'api'] : ['core', 'advanced', 'api', 'sso', 'dedicated_support', 'custom_integrations'] });
+  }
+  const productNames = ['Data Platform', 'Analytics Suite', 'API Gateway', 'ML Engine', 'Storage Service', 'Auth Service', 'Notification Hub', 'Workflow Engine'];
+  for (const name of productNames) products.push({ id: generateId('prod'), name, description: `${name} for enterprise workloads`, active: true });
+  createFeatureFlag('new_dashboard', 'New analytics dashboard', true, 'pro');
+  createFeatureFlag('beta_api_v2', 'API v2 beta access', true, 'enterprise');
+  createFeatureFlag('dark_mode', 'Dark mode UI', true, 'basic');
+  createFeatureFlag('sso_saml', 'SAML SSO integration', true, 'enterprise');
+  createFeatureFlag('webhooks', 'Webhook notifications', true, 'pro');
+  createFeatureFlag('custom_domains', 'Custom domain support', false, 'enterprise');
+  createFeatureFlag('bulk_import', 'Bulk data import', true, 'pro');
+  createFeatureFlag('audit_export', 'Audit log export', true, 'enterprise');
+  const customerCount = 120;
+  const allSubs = [];
+  for (let i = 0; i < customerCount; i++) {
+    const tier = i < 60 ? 'basic' : i < 100 ? 'pro' : 'enterprise';
+    const companyName = `${pick(COMPANY_NAMES)} ${pick(['Corp', 'Inc', 'LLC', 'Group', 'Systems', 'Labs', 'Tech', 'Digital'])}`;
+    const industry = pick(INDUSTRIES);
+    const ownerUser = createUser(pick(FIRST_NAMES), pick(LAST_NAMES), 'owner', null);
+    const customer = createCustomer(companyName, industry, tier, ownerUser.id);
+    const account = createAccount(customer.id, `${companyName} Main`);
+    ownerUser.accountId = account.id;
+    const maxUsers = TIER_CONFIG[tier].maxUsers;
+    const userCount = Math.min(randInt(2, maxUsers), 10);
+    for (let u = 0; u < userCount; u++) {
+      const role = u === 0 ? 'owner' : pick(['admin', 'member', 'viewer']);
+      createUser(pick(FIRST_NAMES), pick(LAST_NAMES), role, account.id);
+    }
+    const plan = pricingPlans.find(p => p.tier === tier);
+    const startDate = randomDate(BASE_DATE, new Date('2024-06-01T00:00:00Z'));
+    const discountedPrice = calculateDiscount(plan.monthlyPrice, tier, i);
+    const sub = { id: generateId('sub'), customerId: customer.id, planId: plan.id, tier, monthlyPrice: discountedPrice, status: 'active', startDate, endDate: addMonths(startDate, 12), discount: plan.monthlyPrice - discountedPrice, failedPaymentCount: 0 };
+    subscriptions.push(sub);
+    allSubs.push(sub);
+    const ticketCount = randInt(0, 4);
+    for (let t = 0; t < ticketCount; t++) {
+      const priority = tier === 'enterprise' ? pick(['high', 'critical']) : pick(TICKET_PRIORITIES);
+      const ticket = createTicket(customer.id, pick(['Login issue', 'API timeout', 'Data sync error', 'Billing question', 'Feature request', 'Performance degradation', 'Integration failure', 'Permission error']), priority, tier);
+      if (chance(0.6)) {
+        ticket.status = 'in_progress';
+        if (chance(0.7)) resolveTicket(ticket);
+        else if (chance(0.3)) escalateTicket(ticket);
+      }
+    }
+    if (chance(0.5)) {
+      const project = createProject(`${companyName} Integration`, customer.id);
+      const taskCount = randInt(2, 5);
+      let prevTaskId = null;
+      for (let t = 0; t < taskCount; t++) {
+        const deps = prevTaskId ? [prevTaskId] : [];
+        const status = t < taskCount - 1 ? 'done' : pick(TASK_STATUSES);
+        const task = createTask(project, `Phase ${t + 1}: ${pick(['Setup', 'Migration', 'Testing', 'Deployment', 'Optimization'])}`, status, deps);
+        prevTaskId = task.id;
+      }
+    }
+    const apiCount = randInt(5, 50);
+    for (let a = 0; a < apiCount; a++) {
+      apiRequests.push({ id: generateId('api'), customerId: customer.id, endpoint: pick(['/v1/data', '/v1/users', '/v1/reports', '/v1/webhooks', '/v1/auth']), method: pick(['GET', 'POST', 'PUT', 'DELETE']), status: chance(0.95) ? 'success' : 'error', statusCode: chance(0.95) ? 200 : pick([429, 500, 503]), timestamp: randomDate(BASE_DATE, NOW), responseTime: randInt(10, 500) });
+    }
+    const usageCount = randInt(3, 10);
+    for (let u = 0; u < usageCount; u++) {
+      usageRecords.push({ id: generateId('usage'), customerId: customer.id, metric: pick(['api_calls', 'data_storage_gb', 'active_users', 'events_processed']), value: randInt(100, 10000), period: randomDate(BASE_DATE, NOW) });
+    }
+    if (tier === 'enterprise') {
+      contracts.push({ id: generateId('contract'), customerId: customer.id, type: 'enterprise_msa', value: randInt(50000, 500000), startDate, endDate: addMonths(startDate, 24), status: 'active' });
+    }
+  }
+  await processBatchInvoices(allSubs);
+  for (const sub of subscriptions) {
+    if (sub.status === 'active' && chance(0.15)) {
+      cancelSubscription(sub, pick(['price', 'competitor', 'features', 'budget', 'consolidation']));
+    }
+    if (sub.status === 'active' && sub.tier === 'basic' && chance(0.3)) {
+      const newPlan = pricingPlans.find(p => p.tier === 'pro');
+      try { upgradeSubscription(sub, newPlan.id); } catch (e) { /* blocked by unpaid invoices */ }
+    }
+    if (sub.status === 'active' && sub.tier === 'enterprise' && chance(0.2)) {
+      const newPlan = pricingPlans.find(p => p.tier === 'pro');
+      try { downgradeSubscription(sub, newPlan.id); } catch (e) { /* plan not found */ }
+    }
+  }
+  const oppCount = 30;
+  for (let i = 0; i < oppCount; i++) {
+    const stage = pick(OPP_STAGES);
+    const value = randInt(10000, 200000);
+    const name = `${pick(COMPANY_NAMES)} ${pick(['Expansion', 'New Deal', 'Renewal', 'Upsell'])}`;
+    const opp = createOpportunity(name, value, stage);
+    if (stage === 'closed_won' || stage === 'closed_lost') closeOpportunity(opp, stage === 'closed_won');
+  }
+  const teamNames = ['Engineering', 'Sales', 'Support', 'Product', 'Marketing', 'Finance'];
+  for (const tn of teamNames) teams.push({ id: generateId('team'), name: tn, memberCount: randInt(3, 15), createdAt: BASE_DATE });
+  const completedPayments = payments.filter(p => p.status === 'completed');
+  for (let i = 0; i < Math.min(5, completedPayments.length); i++) {
+    const p = completedPayments[i];
+    const refundAmount = Math.round(p.amount * rand() * 0.5 * 100) / 100;
+    processRefund(p, refundAmount, pick(['duplicate_charge', 'service_issue', 'customer_request']));
+    p.status = 'refunded';
+  }
+  for (const c of customers.slice(0, 20)) {
+    createNotification(c.ownerUserId, pick(['welcome', 'usage_alert', 'renewal_reminder', 'feature_update']), pick(['Welcome aboard!', 'You are at 80% of your API limit', 'Your subscription renews in 30 days', 'New features available in your plan']), 'normal');
+  }
+  const revenueReport = computeRevenueReport();
+  const sampleCustomer = customers[0];
+  const usageSummary = computeUsageSummary(sampleCustomer.id);
+  const sampleTask = tasks[0];
+  if (sampleTask) { const depChain = getTaskDependencies(sampleTask.id, tasks); }
+  const rateLimitSample = checkRateLimit(customers[0].id, customers[0].tier);
+  const permSample = hasPermission(users[0].id, 'read');
+  const featureSample = getFeatureAvailability('enterprise', 'sso_saml');
+  const clvSample = calculateCLV(customers[0].id);
+  validate(customers[0], { name: { required: true }, tier: { required: true } });
+  const assert = (condition, message) => { if (!condition) throw new Error(`Assertion failed: ${message}`); };
+  assert(calculateMRR() >= 0, 'MRR cannot be negative');
+  assert(Math.abs(calculateARR() - calculateMRR() * 12) < 0.01, 'ARR must equal MRR × 12');
+  assert(subscriptions.filter(s => s.status === 'cancelled' && s.status === 'active').length === 0, 'Cancelled subscriptions cannot be active');
+  const paidInvoices = invoices.filter(i => i.status === 'paid');
+  assert(paidInvoices.every(i => payments.some(p => p.invoiceId === i.id && p.status === 'completed')), 'Paid invoices must have a completed payment');
+  assert(users.every(u => accounts.some(a => a.id === u.accountId)), 'Users must belong to valid accounts');
+  const entPlan = pricingPlans.find(p => p.tier === 'enterprise');
+  const basicPlan = pricingPlans.find(p => p.tier === 'basic');
+  assert(entPlan.apiLimit > basicPlan.apiLimit, 'Enterprise plans must have higher API limits than basic plans');
+  const closedWon = opportunities.filter(o => o.stage === 'closed_won');
+  assert(closedWon.every(o => o.customerId !== null && customers.some(c => c.id === o.customerId)), 'Closed-won opportunities must have associated customers');
+  const refundedPayments = payments.filter(p => p.status === 'refunded');
+  assert(refundedPayments.every(p => p.amount > 0), 'Refunds cannot exceed the original payment');
+  assert(customers.every(c => subscriptions.some(s => s.customerId === c.id)), 'All customers must have at least one subscription');
+  assert(subscriptions.every(s => pricingPlans.some(p => p.id === s.planId)), 'All subscriptions must reference valid plans');
+  assert(invoices.every(i => subscriptions.some(s => s.id === i.subscriptionId)), 'All invoices must reference valid subscriptions');
+  assert(payments.every(p => invoices.some(i => i.id === p.invoiceId)), 'All payments must reference valid invoices');
+  assert(tickets.every(t => customers.some(c => c.id === t.customerId)), 'All tickets must reference valid customers');
+  assert(projects.every(p => customers.some(c => c.id === p.customerId)), 'All projects must reference valid customers');
+  assert(tasks.every(t => projects.some(p => p.id === t.projectId)), 'All tasks must reference valid projects');
+  const validEntities = new Set(['customer', 'invoice', 'payment', 'subscription', 'ticket', 'opportunity', 'task', 'refund', 'user', 'account']);
+  assert(auditLogs.every(l => validEntities.has(l.entity)), 'All audit logs must have valid entity types');
+  assert(notifications.every(n => users.some(u => u.id === n.userId)), 'All notifications must reference valid users');
+  assert(featureFlags.every(f => TIERS.includes(f.tier)), 'Feature flags must have valid tiers');
+  assert(permissions.every(p => ROLE_PERMISSIONS[p.role] !== undefined), 'Permissions must match role definitions');
+  assert(subscriptions.filter(s => s.status === 'active').every(s => s.monthlyPrice > 0), 'Active subscriptions must have positive monthly price');
+  const suspended = subscriptions.filter(s => s.status === 'suspended');
+  assert(suspended.every(s => s.failedPaymentCount >= 3), 'Suspended subscriptions must have at least 3 failed payments');
+  const entCustomers = customers.filter(c => c.tier === 'enterprise');
+  assert(entCustomers.every(c => contracts.some(ct => ct.customerId === c.id)), 'Enterprise customers must have contracts');
+  assert(invoices.every(i => i.total > 0), 'Invoice totals must be positive');
+  assert(invoices.every(i => i.tax < i.baseAmount), 'Tax must be less than base amount');
+  assert(apiRequests.every(r => [200, 429, 500, 503].includes(r.statusCode)), 'API requests must have valid status codes');
+  assert(tickets.filter(t => t.status === 'resolved').every(t => t.resolvedAt !== null), 'Resolved tickets must have a resolvedAt date');
+  assert(tickets.filter(t => t.status === 'open').every(t => t.resolvedAt === null), 'Open tickets must not have a resolvedAt date');
+  const cr = calculateChurnRate();
+  assert(cr >= 0 && cr <= 1, 'Churn rate must be between 0 and 1');
+  const activeC = customers.filter(c => c.status === 'active').length;
+  const churnedC = customers.filter(c => c.status === 'churned').length;
+  assert(customers.length >= activeC + churnedC, 'Total customers must equal or exceed sum of active and churned');
+  assert(opportunities.every(o => o.value > 0), 'All opportunities must have positive value');
+  assert(opportunities.filter(o => o.stage.startsWith('closed')).every(o => o.closedAt !== null), 'Closed opportunities must have closedAt date');
+  assert(accounts.every(a => customers.some(c => c.id === a.customerId)), 'All accounts must reference valid customers');
+  const productNamesSet = new Set(products.map(p => p.name));
+  assert(productNamesSet.size === products.length, 'Products must all be unique by name');
+  assert(usageRecords.every(u => u.value > 0), 'Usage records must have positive values');
+  const allIds = [...customers.map(c => c.id), ...users.map(u => u.id), ...subscriptions.map(s => s.id), ...invoices.map(i => i.id), ...payments.map(p => p.id)];
+  assert(new Set(allIds).size === allIds.length, 'All IDs must be unique');
+  const proPlan = pricingPlans.find(p => p.tier === 'pro');
+  assert(proPlan.monthlyPrice > basicPlan.monthlyPrice, 'Pro tier must have higher price than basic');
+  assert(entPlan.monthlyPrice > proPlan.monthlyPrice, 'Enterprise tier must have higher price than pro');
+  assert(featureFlags.every(f => typeof f.enabled === 'boolean'), 'All feature flags must have a boolean enabled field');
+  assert(tasks.every(t => t.dependencies.every(d => tasks.some(task => task.id === d))), 'Task dependencies must reference existing tasks');
+  assert(contracts.every(c => c.value > 0), 'All contracts must have positive value');
+  assert(invoices.every(i => i.dueDate > i.issuedAt), 'Invoice due dates must be after issue dates');
+  assert(customers.every(c => TIERS.includes(c.tier)), 'All customers must have a valid tier');
+  assert(users.every(u => ROLES.includes(u.role)), 'Users must have valid roles');
+  const apiErrCount = apiRequests.filter(r => r.status === 'error').length;
+  assert(apiErrCount <= apiRequests.length, 'API error count must not exceed total API requests');
+  const outstanding = invoices.filter(i => i.status === 'pending').reduce((s, i) => s + i.total, 0);
+  assert(outstanding >= 0, 'Outstanding revenue must be non-negative');
+  const metrics = aggregateAnalytics();
+  console.log('=== Enterprise SaaS Simulation Summary ===');
+  console.log(`Customers: ${metrics.totalCustomers} (Active: ${metrics.activeCustomers}, Churned: ${metrics.churnedCustomers})`);
+  console.log(`MRR: $${metrics.MRR.toLocaleString()} | ARR: $${metrics.ARR.toLocaleString()}`);
+  console.log(`Churn Rate: ${metrics.churnRate}%`);
+  console.log(`Invoices: ${metrics.totalInvoices} | Outstanding: $${metrics.outstandingRevenue.toLocaleString()}`);
+  console.log(`Payments: $${metrics.totalPayments.toLocaleString()} | Failed: ${metrics.failedPayments}`);
+  console.log(`Tickets: ${metrics.openTickets} open | Avg Resolution: ${metrics.averageResolutionTime} days`);
+  console.log(`Pipeline: $${metrics.pipelineValue.toLocaleString()} | Closed Won: $${metrics.closedWonRevenue.toLocaleString()}`);
+  console.log(`API Requests: ${metrics.APIRequests} | Errors: ${metrics.APIErrors}`);
+  console.log(`Audit Logs: ${auditLogs.length} | Notifications: ${notifications.length}`);
+  console.log('=== Simulation Complete ===');
+  return { customers, users, subscriptions, invoices, payments, tickets, opportunities, projects, auditLogs, notifications, metrics };
+}

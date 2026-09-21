@@ -1,0 +1,137 @@
+{
+  "id": "JonathanColetti__Qwen3.8-27B-Uncensored-GGUF",
+  "repo": "JonathanColetti/Qwen3.8-27B-Uncensored-GGUF",
+  "quant": "Q4_K_M",
+  "files": [
+    "Qwen3.8-27B-Uncensored-noMTP-Q4_K_M.gguf"
+  ],
+  "sizeGB": 15.41,
+  "trendingScore": 71,
+  "downloads": 2284212,
+  "likes": 1201,
+  "createdAt": "2026-08-14T03:43:36.000Z",
+  "testedAt": "2026-09-21T17:44:09.423Z",
+  "status": "ok",
+  "hardware": {
+    "vramGB": 96,
+    "contextSize": 40960,
+    "extraArgs": [
+      "--no-mmap",
+      "--jinja",
+      "-fa",
+      "on"
+    ],
+    "llamaCpp": "version: 0.4.0-dev (build 10809, commit 5266f24da)"
+  },
+  "settings": {
+    "temperature": 0.3,
+    "topP": 0.95,
+    "maxTokens": 32768,
+    "reasoning": {
+      "effort": "low",
+      "budget": 4096
+    },
+    "prefetchActive": false
+  },
+  "download": {
+    "seconds": 230.7,
+    "mbps": 71.7,
+    "prefetched": false
+  },
+  "load": {
+    "seconds": 3
+  },
+  "generation": {
+    "ttftMs": 5667,
+    "totalMs": 1821223,
+    "finishReason": "stop",
+    "error": null,
+    "promptTokens": 1220,
+    "completionTokens": 22285,
+    "promptTps": 215.61071026762946,
+    "genTps": 12.273932426339812,
+    "reasoningChars": 13869,
+    "contentChars": 65347
+  },
+  "memory": {
+    "peakVramGB": 19.7,
+    "peakGttGB": 0.89,
+    "peakRssGB": 0.63
+  },
+  "power": {
+    "source": "amdgpu power1_input",
+    "avgW": 89.4,
+    "peakW": 97.7,
+    "energyWh": 45.231,
+    "tokensPerWh": 493,
+    "whPer1kTokens": 2.03,
+    "rateUSDPerKWh": 0.20716,
+    "costUSD": 0.00937,
+    "costPer1MTokens": 0.4205
+  },
+  "evaluation": {
+    "hasFunction": true,
+    "functionForm": "declaration",
+    "fenced": false,
+    "extraneous": false,
+    "static": {
+      "totalLines": 532,
+      "codeLines": 532,
+      "nestedFns": 50,
+      "assertions": 45,
+      "assertHelpers": [
+        "assert"
+      ],
+      "topLevelExtras": 0,
+      "systems": 20,
+      "externalDeps": false,
+      "features": {
+        "generators": true,
+        "asyncAwait": true,
+        "customErrors": true,
+        "mapSet": true,
+        "promises": false
+      }
+    },
+    "syntaxOk": false,
+    "syntaxError": "/var/home/CypherAZ/strix/models/_eval/JonathanColetti__Qwen3.8-27B-Uncensored-GGUF/output.mjs:413\n  await processBatchInvoices(allSubs);\n  ^^^^^\nSyntaxError: Unexpected reserved word\n    at checkSyntax (node:internal/main/check_syntax:74:5)\nNode.js v22.23.2",
+    "execution": null,
+    "errorKind": null,
+    "score": {
+      "version": 3,
+      "total": 36,
+      "max": {
+        "syntax": 10,
+        "completed": 5,
+        "lineCount": 5,
+        "nestedFns": 5,
+        "assertions": 5,
+        "techniques": 5,
+        "systems": 5,
+        "outputRules": 5,
+        "noExternalDeps": 5,
+        "execution": 25,
+        "returnShape": 10,
+        "customers": 5,
+        "invariants": 5,
+        "deterministic": 5
+      },
+      "breakdown": {
+        "syntax": 0,
+        "completed": 5,
+        "lineCount": 2,
+        "nestedFns": 5,
+        "assertions": 5,
+        "techniques": 4,
+        "systems": 5,
+        "outputRules": 5,
+        "noExternalDeps": 5,
+        "execution": 0,
+        "returnShape": 0,
+        "customers": 0,
+        "invariants": 0,
+        "deterministic": 0
+      }
+    }
+  }
+}
