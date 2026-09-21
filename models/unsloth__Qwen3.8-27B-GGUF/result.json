@@ -1,0 +1,151 @@
+{
+  "id": "unsloth__Qwen3.8-27B-GGUF",
+  "repo": "unsloth/Qwen3.8-27B-GGUF",
+  "quant": "Q8_K_XL",
+  "files": [
+    "Qwen3.8-27B-UD-Q8_K_XL.gguf"
+  ],
+  "sizeGB": 29.3,
+  "trendingScore": 0,
+  "downloads": 7039006,
+  "likes": 4467,
+  "createdAt": "2026-08-13T08:28:40.000Z",
+  "testedAt": "2026-09-21T20:36:49.455Z",
+  "status": "ok",
+  "hardware": {
+    "vramGB": 96,
+    "contextSize": 40960,
+    "extraArgs": [
+      "--no-mmap",
+      "--jinja",
+      "-fa",
+      "on"
+    ],
+    "llamaCpp": "version: 0.4.0-dev (build 10809, commit 5266f24da)"
+  },
+  "settings": {
+    "temperature": 0.3,
+    "topP": 0.95,
+    "maxTokens": 32768,
+    "reasoning": {
+      "effort": "low",
+      "budget": 4096
+    },
+    "prefetchActive": false
+  },
+  "download": {
+    "seconds": 452.9,
+    "mbps": 69.5,
+    "prefetched": false
+  },
+  "load": {
+    "seconds": 7.5
+  },
+  "generation": {
+    "ttftMs": 6360,
+    "totalMs": 1936023,
+    "finishReason": "stop",
+    "error": null,
+    "promptTokens": 1220,
+    "completionTokens": 13741,
+    "promptTps": 192.1360600485033,
+    "genTps": 7.120411005877298,
+    "reasoningChars": 5761,
+    "contentChars": 44128
+  },
+  "memory": {
+    "peakVramGB": 32.45,
+    "peakGttGB": 1.48,
+    "peakRssGB": 0.65
+  },
+  "power": {
+    "source": "amdgpu power1_input",
+    "avgW": 87.6,
+    "peakW": 92.9,
+    "energyWh": 47.078,
+    "tokensPerWh": 292,
+    "whPer1kTokens": 3.426,
+    "rateUSDPerKWh": 0.20716,
+    "costUSD": 0.009753,
+    "costPer1MTokens": 0.7097
+  },
+  "evaluation": {
+    "hasFunction": true,
+    "functionForm": "declaration",
+    "fenced": false,
+    "extraneous": false,
+    "static": {
+      "totalLines": 930,
+      "codeLines": 801,
+      "nestedFns": 47,
+      "assertions": 48,
+      "assertHelpers": [
+        "assert"
+      ],
+      "topLevelExtras": 0,
+      "systems": 19,
+      "externalDeps": false,
+      "features": {
+        "generators": true,
+        "asyncAwait": true,
+        "customErrors": true,
+        "mapSet": true,
+        "promises": false
+      }
+    },
+    "syntaxOk": true,
+    "syntaxError": null,
+    "execution": {
+      "ok": false,
+      "exitCode": 2,
+      "timedOut": false,
+      "ms": 37,
+      "printedSummary": false,
+      "summaryPreview": "",
+      "error": "SIMULATION_ERROR: ReferenceError: averageRevenuePerCustomer is not defined\n    at aggregateAnalytics (file:///var/home/CypherAZ/strix/models/_eval/unsloth__Qwen3.8-27B-GGUF/harness.mjs:594:7)\n    at runEnterpriseSimulation (file:///var/home/CypherAZ/strix/models/_eval/unsloth__Qwen3.8-27B-GGUF/harness.mjs:770:19)\n    at async file:///var/home/CypherAZ/strix/models/_eval/unsloth__Qwen3.8-27B-GGUF/harness.mjs:962:18",
+      "thrown": {
+        "kind": "crash",
+        "name": "ReferenceError",
+        "message": "averageRevenuePerCustomer is not defined"
+      },
+      "result": null
+    },
+    "errorKind": "crash",
+    "score": {
+      "version": 3,
+      "total": 48,
+      "max": {
+        "syntax": 10,
+        "completed": 5,
+        "lineCount": 5,
+        "nestedFns": 5,
+        "assertions": 5,
+        "techniques": 5,
+        "systems": 5,
+        "outputRules": 5,
+        "noExternalDeps": 5,
+        "execution": 25,
+        "returnShape": 10,
+        "customers": 5,
+        "invariants": 5,
+        "deterministic": 5
+      },
+      "breakdown": {
+        "syntax": 10,
+        "completed": 5,
+        "lineCount": 4,
+        "nestedFns": 5,
+        "assertions": 5,
+        "techniques": 4,
+        "systems": 5,
+        "outputRules": 5,
+        "noExternalDeps": 5,
+        "execution": 0,
+        "returnShape": 0,
+        "customers": 0,
+        "invariants": 0,
+        "deterministic": 0
+      }
+    }
+  }
+}
