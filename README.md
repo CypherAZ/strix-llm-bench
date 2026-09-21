@@ -3,11 +3,12 @@
 Automated llama.cpp benchmark on AMD Strix Halo (MS-S1 Max, 128 GB unified memory, 96 GB GPU). 
 Each model is asked to write a ~1,000 line `runEnterpriseSimulation()` function; the output is syntax-checked, executed and scored out of 100.
 
-Last updated: 2026-09-21T17:01:36.956Z · Models tested: 1
+Last updated: 2026-09-21T17:01:53.118Z · Models tested: 2
 
 | # | Model | Quant | Size GB | Score | Thinking | Gen tok/s | Prompt tok/s | Avg W | Wh/1k tok | $/1M tok | TTFT s | Tokens | Lines | Asserts | Syntax | Runs | Status |
 |--:|-------|-------|--------:|------:|:-------:|----------:|-------------:|------:|----------:|---------:|-------:|-------:|------:|--------:|:------:|:----:|--------|
 | 1 | [empero-ai/Qwen3.8-35B-A3B-Distill-GGUF](https://huggingface.co/empero-ai/Qwen3.8-35B-A3B-Distill-GGUF) | Q4_K_M | 20.2 | **23** | low · ≤4096 tok | 63.4 | 664.7 | 70.3 | 0.310 | $0.064 | 1.80 | 32768 | 1840 | 421 | ❌ | – | length |
+| 2 | [openbmb/MiniCPM5-2B-GGUF](https://huggingface.co/openbmb/MiniCPM5-2B-GGUF) | Q4_K_M | 1.4 | **0** | low · ≤4096 tok | 118.2 | – | 66.9 | 0.166 | $0.034 | 0.34 | 1280 | 0 | 0 | ✅ | – | loop |
 
 Per-model raw output, extracted code and full metrics are in [`models/`](models/).
 
